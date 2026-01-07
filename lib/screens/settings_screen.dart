@@ -37,6 +37,35 @@ class SettingsScreen extends StatelessWidget {
               _buildSoundCard(context, settings),
               const SizedBox(height: 24),
 
+              // Suggestions Section
+              _buildSectionHeader(context, 'Suggestions'),
+              _buildSuggestionsToggle(context, settings),
+              if (settings.suggestionsEnabled) ...[
+                const SizedBox(height: 8),
+                _buildSuggestionsList(
+                  context,
+                  settings,
+                  'Break Suggestions',
+                  '☕',
+                  settings.breakSuggestions,
+                  settings.addBreakSuggestion,
+                  settings.removeBreakSuggestion,
+                ),
+                const SizedBox(height: 8),
+                _buildSuggestionsList(
+                  context,
+                  settings,
+                  'Celebration Suggestions',
+                  '🎉',
+                  settings.celebrationSuggestions,
+                  settings.addCelebrationSuggestion,
+                  settings.removeCelebrationSuggestion,
+                ),
+                const SizedBox(height: 8),
+                _buildResetSuggestionsCard(context, settings),
+              ],
+              const SizedBox(height: 24),
+
               // Reset Section
               _buildSectionHeader(context, 'Other'),
               _buildResetCard(context, settings),
@@ -130,6 +159,109 @@ class SettingsScreen extends StatelessWidget {
         secondary: const Icon(Icons.volume_up),
         value: settings.soundEnabled,
         onChanged: (value) => settings.toggleSound(),
+      ),
+    );
+  }
+
+  Widget _buildSuggestionsToggle(BuildContext context, SettingsProvider settings) {
+    return Card(
+      child: SwitchListTile(
+        title: const Text('Show Suggestions'),
+        subtitle: const Text('Fun ideas for breaks and celebrations'),
+        secondary: const Icon(Icons.lightbulb_outline),
+        value: settings.suggestionsEnabled,
+        onChanged: (value) => settings.toggleSuggestions(),
+      ),
+    );
+  }
+
+  Widget _buildSuggestionsList(
+    BuildContext context,
+    SettingsProvider settings,
+    String title,
+    String emoji,
+    List<String> suggestions,
+    Future<void> Function(String) onAdd,
+    Future<void> Function(int) onRemove,
+  ) {
+    return Card(
+      child: ExpansionTile(
+        leading: Text(emoji, style: const TextStyle(fontSize: 24)),
+        title: Text(title),
+        subtitle: Text('${suggestions.length} items'),
+        children: [
+          ...suggestions.asMap().entries.map((entry) {
+            final index = entry.key;
+            final suggestion = entry.value;
+            return ListTile(
+              dense: true,
+              title: Text(suggestion),
+              trailing: IconButton(
+                icon: const Icon(Icons.delete_outline, size: 20),
+                onPressed: () => onRemove(index),
+              ),
+            );
+          }),
+          ListTile(
+            dense: true,
+            leading: const Icon(Icons.add, color: Colors.green),
+            title: const Text('Add suggestion'),
+            onTap: () => _showAddSuggestionDialog(context, onAdd),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showAddSuggestionDialog(
+    BuildContext context,
+    Future<void> Function(String) onAdd,
+  ) async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Suggestion'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Enter your suggestion',
+          ),
+          onSubmitted: (value) => Navigator.pop(context, value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.trim().isNotEmpty) {
+      await onAdd(result.trim());
+    }
+  }
+
+  Widget _buildResetSuggestionsCard(BuildContext context, SettingsProvider settings) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.refresh),
+        title: const Text('Reset Suggestions'),
+        subtitle: const Text('Restore default suggestions'),
+        onTap: () async {
+          await settings.resetSuggestionsToDefaults();
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Suggestions reset to defaults')),
+            );
+          }
+        },
       ),
     );
   }

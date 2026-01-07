@@ -15,6 +15,8 @@ Instead of agonizing over which task to work on, Goaly picks a random task for y
 - **Task Estimates**: Optional time estimates to compare against actual time
 - **Task Dependencies**: Block tasks until prerequisite tasks are complete
 - **Statistics Dashboard**: View completed tasks, time breakdown, and estimate accuracy
+- **Break Suggestions**: Fun activity ideas shown during breaks (customizable)
+- **Celebration Suggestions**: Reward ideas when completing tasks (customizable)
 - **Dark Mode**: Full dark/light theme support
 
 ## Getting Started
@@ -103,6 +105,34 @@ lib/
 - `shared_preferences` - Settings persistence
 - `audioplayers` - Completion sounds
 - `path_provider` / `path` - File paths
+
+## Building for Release
+
+### Android
+
+```bash
+# Build signed AAB for Play Console
+flutter build appbundle --release
+# Output: build/app/outputs/bundle/release/app-release.aab
+```
+
+Requires `android/key.properties` with keystore credentials (not checked into git).
+
+### iOS
+
+```bash
+# Build IPA for TestFlight
+flutter build ipa --release
+```
+
+Requires Xcode signing configured with Apple Developer account.
+
+## TODO
+
+- [ ] Replace `print()` with `debugPrint()` in home_screen.dart (lines 27, 34, 36, 393)
+- [ ] Add try-catch for JSON parsing in settings_provider.dart (lines 50-58)
+- [ ] Add input length validation for task descriptions
+- [ ] Enable code obfuscation for release builds (`--obfuscate --split-debug-info`)
 
 ## License
 

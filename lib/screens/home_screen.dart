@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/timer_provider.dart';
 import '../providers/task_provider.dart';
+import '../providers/settings_provider.dart';
 import '../config/constants.dart';
 import '../screens/task_list_screen.dart';
 import '../screens/settings_screen.dart';
@@ -15,6 +16,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  String? _currentBreakSuggestion;
+  bool _wasInBreak = false;
+
   @override
   void initState() {
     super.initState();
@@ -33,6 +37,20 @@ class _HomeScreenState extends State<HomeScreen> {
         print('Error loading tasks: $e');
       });
     });
+  }
+
+  void _updateBreakSuggestion(TimerProvider timer, SettingsProvider settings) {
+    final isInBreak = timer.sessionType == SessionType.breakSession &&
+        (timer.isRunning || timer.isPaused);
+
+    if (isInBreak && !_wasInBreak) {
+      // Just entered break, get new suggestion
+      _currentBreakSuggestion = settings.getRandomBreakSuggestion();
+    } else if (!isInBreak) {
+      // Not in break, clear suggestion
+      _currentBreakSuggestion = null;
+    }
+    _wasInBreak = isInBreak;
   }
 
   @override
@@ -67,8 +85,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: Consumer2<TimerProvider, TaskProvider>(
-        builder: (context, timer, tasks, _) {
+      body: Consumer3<TimerProvider, TaskProvider, SettingsProvider>(
+        builder: (context, timer, tasks, settings, _) {
+          // Update break suggestion state
+          _updateBreakSuggestion(timer, settings);
+
           return Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
@@ -83,8 +104,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildCircularTimer(timer),
                   const SizedBox(height: 32),
 
-                  // Current Task Display
-                  _buildCurrentTask(timer),
+                  // Current Task Display (work) or Break Suggestion (break)
+                  if (timer.sessionType == SessionType.work)
+                    _buildCurrentTask(timer)
+                  else if (_currentBreakSuggestion != null)
+                    _buildBreakSuggestion(),
                   const SizedBox(height: 48),
 
                   // Control Buttons
@@ -202,6 +226,36 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(
                 fontSize: 20,
                 color: Theme.of(context).colorScheme.onPrimaryContainer,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBreakSuggestion() {
+    return Card(
+      color: Colors.green.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            const Text(
+              '💡 Suggestion',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.green,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _currentBreakSuggestion!,
+              style: TextStyle(
+                fontSize: 20,
+                color: Colors.green.shade800,
               ),
               textAlign: TextAlign.center,
             ),

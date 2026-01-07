@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:provider/provider.dart';
 import '../models/task.dart';
 import '../providers/task_provider.dart';
 import '../providers/settings_provider.dart';
@@ -224,17 +225,55 @@ class TimerProvider with ChangeNotifier {
 
     // Show dialog asking user what to do next
     if (context.mounted) {
-      await _showCompletionDialog(context, completedTask!);
+      final settings = context.read<SettingsProvider>();
+      final suggestion = settings.getRandomCelebrationSuggestion();
+      await _showCompletionDialog(context, completedTask!, suggestion);
     }
   }
 
-  Future<void> _showCompletionDialog(BuildContext context, Task completedTask) async {
+  Future<void> _showCompletionDialog(
+    BuildContext context,
+    Task completedTask,
+    String? celebrationSuggestion,
+  ) async {
     final result = await showDialog<String>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('🎉 Task Complete!'),
-        content: Text('Great job finishing "${completedTask.description}"!\n\nWhat would you like to do next?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Great job finishing "${completedTask.description}"!'),
+            if (celebrationSuggestion != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Text('🎁 ', style: TextStyle(fontSize: 20)),
+                    Expanded(
+                      child: Text(
+                        celebrationSuggestion,
+                        style: TextStyle(
+                          color: Colors.amber.shade800,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            const Text('What would you like to do next?'),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, 'celebrate'),

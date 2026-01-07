@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/task_provider.dart';
+import '../providers/settings_provider.dart';
 import '../config/constants.dart';
 import '../models/task.dart';
 import '../services/dependency_validator.dart';
@@ -206,7 +207,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
         return StatefulBuilder(
           builder: (context, setState) {
             final taskProvider = context.read<TaskProvider>();
+            final settingsProvider = context.watch<SettingsProvider>();
             final availableTasks = taskProvider.getAvailableTasksForDependency(null);
+            final showAdvanced = settingsProvider.advancedTaskOptions;
 
             return AlertDialog(
               title: const Text('Add New Task'),
@@ -227,48 +230,70 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       maxLines: 3,
                       textCapitalization: TextCapitalization.sentences,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
 
-                    // Time estimate field
-                    TextField(
-                      controller: _estimateController,
-                      decoration: const InputDecoration(
-                        labelText: 'Time Estimate (minutes)',
-                        hintText: 'Optional',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.timer),
-                      ),
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Dependency dropdown
-                    DropdownButtonFormField<int?>(
-                      value: _selectedDependencyId,
-                      decoration: const InputDecoration(
-                        labelText: 'Depends On',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.link),
-                      ),
-                      items: [
-                        const DropdownMenuItem(
-                          value: null,
-                          child: Text('None'),
+                    // Advanced options toggle
+                    Row(
+                      children: [
+                        Text(
+                          'Advanced Options',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
                         ),
-                        ...availableTasks.map((task) => DropdownMenuItem(
-                              value: task.id,
-                              child: Text(
-                                task.description,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            )),
+                        const Spacer(),
+                        Switch(
+                          value: showAdvanced,
+                          onChanged: (value) => settingsProvider.setAdvancedTaskOptions(value),
+                        ),
                       ],
-                      onChanged: (value) {
-                        setState(() => _selectedDependencyId = value);
-                      },
                     ),
+
+                    // Advanced fields (conditional)
+                    if (showAdvanced) ...[
+                      const SizedBox(height: 8),
+                      // Time estimate field
+                      TextField(
+                        controller: _estimateController,
+                        decoration: const InputDecoration(
+                          labelText: 'Time Estimate (minutes)',
+                          hintText: 'Optional',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.timer),
+                        ),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Dependency dropdown
+                      DropdownButtonFormField<int?>(
+                        value: _selectedDependencyId,
+                        decoration: const InputDecoration(
+                          labelText: 'Depends On',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.link),
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('None'),
+                          ),
+                          ...availableTasks.map((task) => DropdownMenuItem(
+                                value: task.id,
+                                child: Text(
+                                  task.description,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              )),
+                        ],
+                        onChanged: (value) {
+                          setState(() => _selectedDependencyId = value);
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),
