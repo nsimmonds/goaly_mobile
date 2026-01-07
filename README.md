@@ -111,8 +111,8 @@ lib/
 ### Android
 
 ```bash
-# Build signed AAB for Play Console
-flutter build appbundle --release
+# Build signed AAB for Play Console (with obfuscation)
+flutter build appbundle --release --obfuscate --split-debug-info=build/debug-info
 # Output: build/app/outputs/bundle/release/app-release.aab
 ```
 
@@ -121,18 +121,20 @@ Requires `android/key.properties` with keystore credentials (not checked into gi
 ### iOS
 
 ```bash
-# Build IPA for TestFlight
-flutter build ipa --release
+# Build IPA for TestFlight (with obfuscation)
+flutter build ipa --release --obfuscate --split-debug-info=build/debug-info
 ```
 
 Requires Xcode signing configured with Apple Developer account.
 
+**Note**: Keep `build/debug-info/` for crash symbolication. Do not commit to git.
+
 ## TODO
 
-- [ ] Replace `print()` with `debugPrint()` in home_screen.dart (lines 27, 34, 36, 393)
-- [ ] Add try-catch for JSON parsing in settings_provider.dart (lines 50-58)
-- [ ] Add input length validation for task descriptions
-- [ ] Enable code obfuscation for release builds (`--obfuscate --split-debug-info`)
+- [x] Replace `print()` with `debugPrint()` in home_screen.dart
+- [x] Add try-catch for JSON parsing in settings_provider.dart
+- [x] Add input length validation for task descriptions (500 char limit)
+- [x] Enable code obfuscation for release builds (documented above)
 
 ## License
 

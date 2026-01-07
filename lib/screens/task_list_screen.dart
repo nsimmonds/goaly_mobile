@@ -226,8 +226,10 @@ class _TaskListScreenState extends State<TaskListScreen> {
                         labelText: 'Task Description',
                         hintText: AppConstants.addTaskHint,
                         border: const OutlineInputBorder(),
+                        counterText: '',
                       ),
                       maxLines: 3,
+                      maxLength: 500,
                       textCapitalization: TextCapitalization.sentences,
                     ),
                     const SizedBox(height: 12),
@@ -269,7 +271,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                       // Dependency dropdown
                       DropdownButtonFormField<int?>(
-                        value: _selectedDependencyId,
+                        initialValue: _selectedDependencyId,
                         decoration: const InputDecoration(
                           labelText: 'Depends On',
                           border: OutlineInputBorder(),

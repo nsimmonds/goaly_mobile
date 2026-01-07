@@ -49,12 +49,20 @@ class SettingsProvider with ChangeNotifier {
 
     final breakJson = _prefs.getString(AppConstants.keyBreakSuggestions);
     if (breakJson != null) {
-      _breakSuggestions = List<String>.from(jsonDecode(breakJson));
+      try {
+        _breakSuggestions = List<String>.from(jsonDecode(breakJson));
+      } catch (_) {
+        _breakSuggestions = List.from(AppConstants.defaultBreakSuggestions);
+      }
     }
 
     final celebrationJson = _prefs.getString(AppConstants.keyCelebrationSuggestions);
     if (celebrationJson != null) {
-      _celebrationSuggestions = List<String>.from(jsonDecode(celebrationJson));
+      try {
+        _celebrationSuggestions = List<String>.from(jsonDecode(celebrationJson));
+      } catch (_) {
+        _celebrationSuggestions = List.from(AppConstants.defaultCelebrationSuggestions);
+      }
     }
   }
 

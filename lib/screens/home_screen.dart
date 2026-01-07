@@ -24,7 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     // Load tasks on startup and link providers
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      print('Loading tasks...');
+      debugPrint('Loading tasks...');
       final taskProvider = context.read<TaskProvider>();
       final timerProvider = context.read<TimerProvider>();
 
@@ -32,9 +32,9 @@ class _HomeScreenState extends State<HomeScreen> {
       timerProvider.setTaskProvider(taskProvider);
 
       taskProvider.loadTasks().then((_) {
-        print('Tasks loaded: ${taskProvider.tasks.length}');
+        debugPrint('Tasks loaded: ${taskProvider.tasks.length}');
       }).catchError((e) {
-        print('Error loading tasks: $e');
+        debugPrint('Error loading tasks: $e');
       });
     });
   }
@@ -390,7 +390,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildNavigateToTasksButton(BuildContext context, TaskProvider tasks) {
     return TextButton.icon(
       onPressed: () {
-        print('Navigate to tasks button pressed');
+        debugPrint('Navigate to tasks button pressed');
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const TaskListScreen()),
