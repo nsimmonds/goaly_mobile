@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
 import '../config/constants.dart';
+import 'instructions_screen.dart';
+import 'about_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -66,8 +68,12 @@ class SettingsScreen extends StatelessWidget {
               ],
               const SizedBox(height: 24),
 
-              // Reset Section
+              // Other Section
               _buildSectionHeader(context, 'Other'),
+              _buildInstructionsCard(context),
+              const SizedBox(height: 8),
+              _buildAboutCard(context),
+              const SizedBox(height: 8),
               _buildResetCard(context, settings),
               const SizedBox(height: 24),
 
@@ -262,6 +268,36 @@ class SettingsScreen extends StatelessWidget {
             );
           }
         },
+      ),
+    );
+  }
+
+  Widget _buildInstructionsCard(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.help_outline),
+        title: const Text('How to Use Goaly'),
+        subtitle: const Text('Tips and instructions'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const InstructionsScreen()),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAboutCard(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.info_outline),
+        title: const Text('About'),
+        subtitle: const Text('App info and credits'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const AboutScreen()),
+        ),
       ),
     );
   }
