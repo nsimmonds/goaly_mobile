@@ -268,45 +268,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Tags section
-                    Text(
-                      'Tags',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        // Existing tags as filter chips
-                        ...allTags.map((tag) => FilterChip(
-                          label: Text(tag.name),
-                          selected: _selectedTagIds.contains(tag.id),
-                          selectedColor: tag.color.withValues(alpha: 0.3),
-                          checkmarkColor: tag.color,
-                          onSelected: (selected) {
-                            setState(() {
-                              if (selected) {
-                                _selectedTagIds.add(tag.id!);
-                              } else {
-                                _selectedTagIds.remove(tag.id);
-                              }
-                            });
-                          },
-                        )),
-                        // Add new tag button
-                        ActionChip(
-                          avatar: const Icon(Icons.add, size: 18),
-                          label: const Text('New'),
-                          onPressed: () => _showNewTagDialog(context, setState),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
                     // Advanced options toggle
                     Row(
                       children: [
@@ -367,6 +328,43 @@ class _TaskListScreenState extends State<TaskListScreen> {
                         onChanged: (value) {
                           setState(() => _selectedDependencyId = value);
                         },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Tags section
+                      Text(
+                        'Tags',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          ...allTags.map((tag) => FilterChip(
+                            label: Text(tag.name),
+                            selected: _selectedTagIds.contains(tag.id),
+                            selectedColor: tag.color.withValues(alpha: 0.3),
+                            checkmarkColor: tag.color,
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  _selectedTagIds.add(tag.id!);
+                                } else {
+                                  _selectedTagIds.remove(tag.id);
+                                }
+                              });
+                            },
+                          )),
+                          ActionChip(
+                            avatar: const Icon(Icons.add, size: 18),
+                            label: const Text('New'),
+                            onPressed: () => _showNewTagDialog(context, setState),
+                          ),
+                        ],
                       ),
                     ],
                   ],
