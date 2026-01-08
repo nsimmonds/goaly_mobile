@@ -146,12 +146,22 @@ class _TaskListScreenState extends State<TaskListScreen> {
                   ),
                 ),
                 subtitle: _buildTaskSubtitle(task, provider),
-                trailing: IconButton(
-                  icon: Icon(
-                    Icons.delete_outline,
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                  onPressed: () => _confirmDelete(context, task, provider),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!task.completed)
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        onPressed: () => _showEditTaskDialog(context, task),
+                      ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.delete_outline,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                      onPressed: () => _confirmDelete(context, task, provider),
+                    ),
+                  ],
                 ),
               ),
               // Tags row
@@ -515,6 +525,228 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
     if (confirmed == true && task.id != null) {
       provider.deleteTask(task.id!);
+    }
+  }
+
+  Future<void> _showEditTaskDialog(BuildContext context, Task task) async {
+    _textController.text = task.description;
+    _estimateController.text = task.timeEstimate?.toString() ?? '';
+    _selectedDependencyId = task.dependencyTaskId;
+    _selectedTagIds = task.tags.map((t) => t.id!).toSet();
+
+    return showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final taskProvider = context.watch<TaskProvider>();
+            final settingsProvider = context.watch<SettingsProvider>();
+            final availableTasks = taskProvider.getAvailableTasksForDependency(task.id);
+            final allTags = taskProvider.allTags;
+            final showAdvanced = settingsProvider.advancedTaskOptions;
+
+            return AlertDialog(
+              title: const Text('Edit Task'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: _textController,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        labelText: 'Task Description',
+                        hintText: AppConstants.addTaskHint,
+                        border: const OutlineInputBorder(),
+                        counterText: '',
+                      ),
+                      maxLines: 3,
+                      maxLength: 500,
+                      textCapitalization: TextCapitalization.sentences,
+                    ),
+                    const SizedBox(height: 12),
+
+                    Row(
+                      children: [
+                        Text(
+                          'Advanced Options',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                        const Spacer(),
+                        Switch(
+                          value: showAdvanced,
+                          onChanged: (value) => settingsProvider.setAdvancedTaskOptions(value),
+                        ),
+                      ],
+                    ),
+
+                    if (showAdvanced) ...[
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _estimateController,
+                        decoration: const InputDecoration(
+                          labelText: 'Time Estimate (minutes)',
+                          hintText: 'Optional',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.timer),
+                        ),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      ),
+                      const SizedBox(height: 16),
+
+                      DropdownButtonFormField<int?>(
+                        initialValue: _selectedDependencyId,
+                        decoration: const InputDecoration(
+                          labelText: 'Depends On',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.link),
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('None'),
+                          ),
+                          ...availableTasks.map((t) => DropdownMenuItem(
+                                value: t.id,
+                                child: Text(
+                                  t.description,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              )),
+                        ],
+                        onChanged: (value) {
+                          setState(() => _selectedDependencyId = value);
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      Text(
+                        'Tags',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          ...allTags.map((tag) => FilterChip(
+                            label: Text(tag.name),
+                            selected: _selectedTagIds.contains(tag.id),
+                            selectedColor: tag.color.withValues(alpha: 0.3),
+                            checkmarkColor: tag.color,
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  _selectedTagIds.add(tag.id!);
+                                } else {
+                                  _selectedTagIds.remove(tag.id);
+                                }
+                              });
+                            },
+                          )),
+                          ActionChip(
+                            avatar: const Icon(Icons.add, size: 18),
+                            label: const Text('New'),
+                            onPressed: () => _showNewTagDialog(context, setState),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => _updateTask(context, task),
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _updateTask(BuildContext context, Task originalTask) async {
+    final description = _textController.text.trim();
+    if (description.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Task description cannot be empty')),
+      );
+      return;
+    }
+
+    int? estimate;
+    if (_estimateController.text.isNotEmpty) {
+      estimate = int.tryParse(_estimateController.text);
+      if (estimate == null || estimate < 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter a valid time estimate')),
+        );
+        return;
+      }
+    }
+
+    final taskProvider = context.read<TaskProvider>();
+
+    // Check for circular dependency
+    if (_selectedDependencyId != null) {
+      if (DependencyValidator.hasCircularDependency(
+        taskProvider.tasks,
+        originalTask.id!,
+        _selectedDependencyId,
+      )) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This would create a circular dependency!')),
+        );
+        return;
+      }
+    }
+
+    // Update the task
+    final updatedTask = originalTask.copyWith(
+      description: description,
+      timeEstimate: estimate,
+      dependencyTaskId: _selectedDependencyId,
+    );
+    await taskProvider.updateTask(updatedTask);
+
+    // Update tags - remove old, add new
+    final currentTagIds = originalTask.tags.map((t) => t.id!).toSet();
+
+    // Remove tags that are no longer selected
+    for (final tagId in currentTagIds) {
+      if (!_selectedTagIds.contains(tagId)) {
+        await taskProvider.removeTagFromTask(originalTask.id!, tagId);
+      }
+    }
+
+    // Add newly selected tags
+    for (final tagId in _selectedTagIds) {
+      if (!currentTagIds.contains(tagId)) {
+        await taskProvider.addTagToTask(originalTask.id!, tagId);
+      }
+    }
+
+    // Reload to get updated tags
+    await taskProvider.loadTasks();
+
+    if (context.mounted) {
+      Navigator.pop(context);
     }
   }
 }
