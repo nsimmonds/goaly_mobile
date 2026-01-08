@@ -49,11 +49,20 @@ jobs:
       - name: Build Android AAB
         run: flutter build appbundle --release
 
-      - name: Upload Android artifact
+      - name: Build Android APK
+        run: flutter build apk --release
+
+      - name: Upload Android AAB
         uses: actions/upload-artifact@v4
         with:
-          name: android-release
+          name: android-aab
           path: build/app/outputs/bundle/release/app-release.aab
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
 
   build-ios:
     runs-on: macos-latest
