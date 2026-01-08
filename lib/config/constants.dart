@@ -6,7 +6,21 @@ class AppConstants {
 
   // Database
   static const String dbName = 'goaly.db';
-  static const int dbVersion = 3;
+  static const int dbVersion = 4;
+
+  // Tag Color Palette (as Color.value integers)
+  static const List<int> tagColorPalette = [
+    0xFF5C6BC0, // Indigo
+    0xFF26A69A, // Teal
+    0xFFEF5350, // Red
+    0xFFFF7043, // Deep Orange
+    0xFF66BB6A, // Green
+    0xFFAB47BC, // Purple
+    0xFF42A5F5, // Blue
+    0xFFFFCA28, // Amber
+    0xFF8D6E63, // Brown
+    0xFF78909C, // Blue Grey
+  ];
 
   // Emojis (matching Python version)
   static const String emojiGoal = '🥅';

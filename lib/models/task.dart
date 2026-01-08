@@ -1,3 +1,5 @@
+import 'tag.dart';
+
 class Task {
   final int? id;
   final String description;
@@ -7,6 +9,7 @@ class Task {
   final int? timeEstimate;      // Minutes, nullable
   final int? dependencyTaskId;  // Task ID, nullable
   final int totalTimeSpent;     // Seconds, default 0
+  final List<Tag> tags;         // Tags (loaded separately from junction table)
 
   Task({
     this.id,
@@ -17,7 +20,9 @@ class Task {
     this.timeEstimate,
     this.dependencyTaskId,
     this.totalTimeSpent = 0,
-  }) : createdAt = createdAt ?? DateTime.now();
+    List<Tag>? tags,
+  })  : createdAt = createdAt ?? DateTime.now(),
+        tags = tags ?? const [];
 
   // Convert Task to Map for database
   Map<String, dynamic> toMap() {
@@ -59,6 +64,7 @@ class Task {
     int? timeEstimate,
     int? dependencyTaskId,
     int? totalTimeSpent,
+    List<Tag>? tags,
   }) {
     return Task(
       id: id ?? this.id,
@@ -69,6 +75,7 @@ class Task {
       timeEstimate: timeEstimate ?? this.timeEstimate,
       dependencyTaskId: dependencyTaskId ?? this.dependencyTaskId,
       totalTimeSpent: totalTimeSpent ?? this.totalTimeSpent,
+      tags: tags ?? this.tags,
     );
   }
 

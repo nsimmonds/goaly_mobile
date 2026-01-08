@@ -3,8 +3,36 @@ import 'package:provider/provider.dart';
 import '../providers/task_provider.dart';
 import '../models/task.dart';
 
-class StatsScreen extends StatelessWidget {
+class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
+
+  @override
+  State<StatsScreen> createState() => _StatsScreenState();
+}
+
+class _StatsScreenState extends State<StatsScreen> {
+  String _searchQuery = '';
+  int? _selectedTagId;
+
+  List<Task> _getFilteredTasks(List<Task> completedTasks) {
+    var filtered = completedTasks;
+
+    // Filter by search query
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((t) =>
+        t.description.toLowerCase().contains(_searchQuery.toLowerCase())
+      ).toList();
+    }
+
+    // Filter by tag
+    if (_selectedTagId != null) {
+      filtered = filtered.where((t) =>
+        t.tags.any((tag) => tag.id == _selectedTagId)
+      ).toList();
+    }
+
+    return filtered;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,34 +42,92 @@ class StatsScreen extends StatelessWidget {
       ),
       body: Consumer<TaskProvider>(
         builder: (context, taskProvider, _) {
-          final completedTasks = taskProvider.completedTasks;
+          final allCompletedTasks = taskProvider.completedTasks;
+          final filteredTasks = _getFilteredTasks(allCompletedTasks);
+          final allTags = taskProvider.allTags;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Filter Section
+                _buildFilterSection(context, allTags),
+                const SizedBox(height: 24),
+
                 // Summary Section
                 _buildSectionHeader(context, 'Overall Summary'),
                 const SizedBox(height: 12),
-                _buildSummaryCards(context, completedTasks),
+                _buildSummaryCards(context, filteredTasks),
                 const SizedBox(height: 32),
 
                 // Time Breakdown Section
                 _buildSectionHeader(context, 'Time Breakdown'),
                 const SizedBox(height: 12),
-                _buildTimeBreakdown(context, completedTasks),
+                _buildTimeBreakdown(context, filteredTasks),
                 const SizedBox(height: 32),
 
                 // Estimate Accuracy Section
                 _buildSectionHeader(context, 'Estimate Accuracy'),
                 const SizedBox(height: 12),
-                _buildEstimateAccuracy(context, completedTasks),
+                _buildEstimateAccuracy(context, filteredTasks),
               ],
             ),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildFilterSection(BuildContext context, List<dynamic> allTags) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Search box
+        TextField(
+          decoration: InputDecoration(
+            hintText: 'Search tasks...',
+            prefixIcon: const Icon(Icons.search),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            suffixIcon: _searchQuery.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () => setState(() => _searchQuery = ''),
+                  )
+                : null,
+          ),
+          onChanged: (value) => setState(() => _searchQuery = value),
+        ),
+        const SizedBox(height: 12),
+
+        // Tag filter chips
+        if (allTags.isNotEmpty)
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              FilterChip(
+                label: const Text('All'),
+                selected: _selectedTagId == null,
+                onSelected: (_) => setState(() => _selectedTagId = null),
+              ),
+              ...allTags.map((tag) => FilterChip(
+                label: Text(tag.name),
+                selected: _selectedTagId == tag.id,
+                selectedColor: tag.color.withValues(alpha: 0.3),
+                checkmarkColor: tag.color,
+                onSelected: (selected) {
+                  setState(() {
+                    _selectedTagId = selected ? tag.id : null;
+                  });
+                },
+              )),
+            ],
+          ),
+      ],
     );
   }
 
@@ -173,6 +259,7 @@ class StatsScreen extends StatelessWidget {
     int underEstimated = 0;
     int onTarget = 0;
     int overEstimated = 0;
+    int beatEstimate = 0;
     int totalEstimatedSeconds = 0;
     int totalActualSeconds = 0;
 
@@ -181,6 +268,11 @@ class StatsScreen extends StatelessWidget {
       final actualSeconds = task.totalTimeSpent;
       totalEstimatedSeconds += estimatedSeconds;
       totalActualSeconds += actualSeconds;
+
+      // Beat estimate = completed in less time than estimated
+      if (actualSeconds < estimatedSeconds) {
+        beatEstimate++;
+      }
 
       final ratio = actualSeconds / estimatedSeconds;
       if (ratio > 1.2) {
@@ -196,8 +288,49 @@ class StatsScreen extends StatelessWidget {
         ? ((totalActualSeconds / totalEstimatedSeconds) * 100).round()
         : 100;
 
+    final beatPercent = tasksWithEstimates.isNotEmpty
+        ? ((beatEstimate / tasksWithEstimates.length) * 100).round()
+        : 0;
+
     return Column(
       children: [
+        // Beat estimate card
+        Card(
+          color: Colors.teal.shade50,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(
+                  beatPercent >= 50 ? Icons.emoji_events : Icons.trending_up,
+                  color: Colors.teal,
+                  size: 32,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$beatPercent% beat their estimate',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        '$beatEstimate of ${tasksWithEstimates.length} tasks completed under estimate',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+
         // Overall accuracy
         Card(
           child: Padding(

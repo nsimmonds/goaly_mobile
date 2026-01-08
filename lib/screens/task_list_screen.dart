@@ -17,12 +17,15 @@ class TaskListScreen extends StatefulWidget {
 class _TaskListScreenState extends State<TaskListScreen> {
   final TextEditingController _textController = TextEditingController();
   final TextEditingController _estimateController = TextEditingController();
+  final TextEditingController _newTagController = TextEditingController();
   int? _selectedDependencyId;
+  Set<int> _selectedTagIds = {};
 
   @override
   void dispose() {
     _textController.dispose();
     _estimateController.dispose();
+    _newTagController.dispose();
     super.dispose();
   }
 
@@ -115,35 +118,63 @@ class _TaskListScreenState extends State<TaskListScreen> {
       opacity: isBlocked ? 0.6 : 1.0,
       child: Card(
         margin: const EdgeInsets.only(bottom: 12),
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          leading: isBlocked
-              ? Icon(Icons.lock, color: Colors.orange, size: 28)
-              : Checkbox(
-                  value: task.completed,
-                  onChanged: task.completed
-                      ? null
-                      : (value) {
-                          if (value == true && task.id != null) {
-                            provider.completeTask(task.id!);
-                          }
-                        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                leading: isBlocked
+                    ? const Icon(Icons.lock, color: Colors.orange, size: 28)
+                    : Checkbox(
+                        value: task.completed,
+                        onChanged: task.completed
+                            ? null
+                            : (value) {
+                                if (value == true && task.id != null) {
+                                  provider.completeTask(task.id!);
+                                }
+                              },
+                      ),
+                title: Text(
+                  task.description,
+                  style: TextStyle(
+                    fontSize: 16,
+                    decoration: task.completed ? TextDecoration.lineThrough : null,
+                    color: task.completed ? Colors.grey : null,
+                  ),
                 ),
-          title: Text(
-            task.description,
-            style: TextStyle(
-              fontSize: 16,
-              decoration: task.completed ? TextDecoration.lineThrough : null,
-              color: task.completed ? Colors.grey : null,
-            ),
-          ),
-          subtitle: _buildTaskSubtitle(task, provider),
-          trailing: IconButton(
-            icon: Icon(
-              Icons.delete_outline,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            onPressed: () => _confirmDelete(context, task, provider),
+                subtitle: _buildTaskSubtitle(task, provider),
+                trailing: IconButton(
+                  icon: Icon(
+                    Icons.delete_outline,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  onPressed: () => _confirmDelete(context, task, provider),
+                ),
+              ),
+              // Tags row
+              if (task.tags.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 72, right: 16, bottom: 8),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: task.tags.map((tag) => Chip(
+                      label: Text(
+                        tag.name,
+                        style: const TextStyle(fontSize: 11, color: Colors.white),
+                      ),
+                      backgroundColor: tag.color,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: EdgeInsets.zero,
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+                      visualDensity: VisualDensity.compact,
+                    )).toList(),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
@@ -199,16 +230,19 @@ class _TaskListScreenState extends State<TaskListScreen> {
   Future<void> _showAddTaskDialog(BuildContext context) async {
     _textController.clear();
     _estimateController.clear();
+    _newTagController.clear();
     _selectedDependencyId = null;
+    _selectedTagIds = {};
 
     return showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            final taskProvider = context.read<TaskProvider>();
+            final taskProvider = context.watch<TaskProvider>();
             final settingsProvider = context.watch<SettingsProvider>();
             final availableTasks = taskProvider.getAvailableTasksForDependency(null);
+            final allTags = taskProvider.allTags;
             final showAdvanced = settingsProvider.advancedTaskOptions;
 
             return AlertDialog(
@@ -231,6 +265,45 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       maxLines: 3,
                       maxLength: 500,
                       textCapitalization: TextCapitalization.sentences,
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Tags section
+                    Text(
+                      'Tags',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        // Existing tags as filter chips
+                        ...allTags.map((tag) => FilterChip(
+                          label: Text(tag.name),
+                          selected: _selectedTagIds.contains(tag.id),
+                          selectedColor: tag.color.withValues(alpha: 0.3),
+                          checkmarkColor: tag.color,
+                          onSelected: (selected) {
+                            setState(() {
+                              if (selected) {
+                                _selectedTagIds.add(tag.id!);
+                              } else {
+                                _selectedTagIds.remove(tag.id);
+                              }
+                            });
+                          },
+                        )),
+                        // Add new tag button
+                        ActionChip(
+                          avatar: const Icon(Icons.add, size: 18),
+                          label: const Text('New'),
+                          onPressed: () => _showNewTagDialog(context, setState),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
 
@@ -316,7 +389,54 @@ class _TaskListScreenState extends State<TaskListScreen> {
     );
   }
 
-  void _saveTask(BuildContext context) {
+  Future<void> _showNewTagDialog(BuildContext context, StateSetter parentSetState) async {
+    _newTagController.clear();
+
+    final tagName = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('New Tag'),
+          content: TextField(
+            controller: _newTagController,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Tag Name',
+              hintText: 'e.g., Work, Personal, Urgent',
+              border: OutlineInputBorder(),
+            ),
+            textCapitalization: TextCapitalization.words,
+            maxLength: 30,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final name = _newTagController.text.trim();
+                if (name.isNotEmpty) {
+                  Navigator.pop(context, name);
+                }
+              },
+              child: const Text('Create'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (tagName != null && tagName.isNotEmpty && context.mounted) {
+      final taskProvider = context.read<TaskProvider>();
+      final newTag = await taskProvider.createTag(tagName);
+      parentSetState(() {
+        _selectedTagIds.add(newTag.id!);
+      });
+    }
+  }
+
+  Future<void> _saveTask(BuildContext context) async {
     final description = _textController.text.trim();
     if (description.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -337,8 +457,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
     }
 
     // Check for circular dependency
+    final taskProvider = context.read<TaskProvider>();
     if (_selectedDependencyId != null) {
-      final taskProvider = context.read<TaskProvider>();
       if (DependencyValidator.hasCircularDependency(
         taskProvider.tasks,
         0, // 0 for new task
@@ -352,13 +472,22 @@ class _TaskListScreenState extends State<TaskListScreen> {
     }
 
     // Save task
-    context.read<TaskProvider>().addTaskWithDetails(
-          description,
-          estimate,
-          _selectedDependencyId,
-        );
+    final createdTask = await taskProvider.addTaskWithDetails(
+      description,
+      estimate,
+      _selectedDependencyId,
+    );
 
-    Navigator.pop(context);
+    // Add selected tags to the task
+    if (createdTask != null && _selectedTagIds.isNotEmpty) {
+      for (final tagId in _selectedTagIds) {
+        await taskProvider.addTagToTask(createdTask.id!, tagId);
+      }
+    }
+
+    if (context.mounted) {
+      Navigator.pop(context);
+    }
   }
 
   Future<void> _confirmDelete(BuildContext context, Task task, TaskProvider provider) async {

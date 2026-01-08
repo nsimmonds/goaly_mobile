@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../models/task.dart';
+import '../models/tag.dart';
 import '../services/database_service.dart';
 import '../services/dependency_validator.dart';
 
@@ -8,11 +9,13 @@ class TaskProvider with ChangeNotifier {
   final DatabaseService _db = DatabaseService.instance;
 
   List<Task> _tasks = [];
+  List<Tag> _tags = [];
   bool _isLoading = false;
   String? _errorMessage;
 
   // Getters
   List<Task> get tasks => _tasks;
+  List<Tag> get allTags => _tags;
   List<Task> get incompleteTasks => _tasks.where((task) => !task.completed).toList();
   List<Task> get completedTasks => _tasks.where((task) => task.completed).toList();
   bool get isLoading => _isLoading;
@@ -27,6 +30,13 @@ class TaskProvider with ChangeNotifier {
 
     try {
       _tasks = await _db.getAllTasks();
+      _tags = await _db.getAllTags();
+
+      // Load tags for each task
+      for (int i = 0; i < _tasks.length; i++) {
+        final taskTags = await _db.getTagsForTask(_tasks[i].id!);
+        _tasks[i] = _tasks[i].copyWith(tags: taskTags);
+      }
     } catch (e) {
       _errorMessage = 'Failed to load tasks: $e';
     } finally {
@@ -58,7 +68,8 @@ class TaskProvider with ChangeNotifier {
   }
 
   /// Add a new task with time estimate and dependency
-  Future<void> addTaskWithDetails(
+  /// Returns the created task, or null if creation failed
+  Future<Task?> addTaskWithDetails(
     String description,
     int? timeEstimate,
     int? dependencyTaskId,
@@ -66,7 +77,7 @@ class TaskProvider with ChangeNotifier {
     if (description.trim().isEmpty) {
       _errorMessage = 'Task description cannot be empty';
       notifyListeners();
-      return;
+      return null;
     }
 
     _errorMessage = null;
@@ -81,9 +92,11 @@ class TaskProvider with ChangeNotifier {
       final createdTask = await _db.createTask(task);
       _tasks.insert(0, createdTask);
       notifyListeners();
+      return createdTask;
     } catch (e) {
       _errorMessage = 'Failed to add task: $e';
       notifyListeners();
+      return null;
     }
   }
 
@@ -237,5 +250,57 @@ class TaskProvider with ChangeNotifier {
   void clearError() {
     _errorMessage = null;
     notifyListeners();
+  }
+
+  // Tag Management
+
+  /// Create a new tag
+  Future<Tag> createTag(String name) async {
+    final tag = await _db.createTag(name);
+    _tags.add(tag);
+    _tags.sort((a, b) => a.name.compareTo(b.name));
+    notifyListeners();
+    return tag;
+  }
+
+  /// Add a tag to a task
+  Future<void> addTagToTask(int taskId, int tagId) async {
+    await _db.addTagToTask(taskId, tagId);
+
+    // Update local task
+    final taskIndex = _tasks.indexWhere((t) => t.id == taskId);
+    if (taskIndex != -1) {
+      final tag = _tags.firstWhere((t) => t.id == tagId);
+      final currentTags = List<Tag>.from(_tasks[taskIndex].tags);
+      if (!currentTags.any((t) => t.id == tagId)) {
+        currentTags.add(tag);
+        _tasks[taskIndex] = _tasks[taskIndex].copyWith(tags: currentTags);
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Remove a tag from a task
+  Future<void> removeTagFromTask(int taskId, int tagId) async {
+    await _db.removeTagFromTask(taskId, tagId);
+
+    // Update local task
+    final taskIndex = _tasks.indexWhere((t) => t.id == taskId);
+    if (taskIndex != -1) {
+      final currentTags = List<Tag>.from(_tasks[taskIndex].tags);
+      currentTags.removeWhere((t) => t.id == tagId);
+      _tasks[taskIndex] = _tasks[taskIndex].copyWith(tags: currentTags);
+      notifyListeners();
+    }
+  }
+
+  /// Get tasks filtered by tag
+  List<Task> getTasksByTag(int tagId) {
+    return _tasks.where((t) => t.tags.any((tag) => tag.id == tagId)).toList();
+  }
+
+  /// Get completed tasks filtered by tag
+  List<Task> getCompletedTasksByTag(int tagId) {
+    return completedTasks.where((t) => t.tags.any((tag) => tag.id == tagId)).toList();
   }
 }
