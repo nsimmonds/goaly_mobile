@@ -164,6 +164,9 @@ Requires Xcode signing configured with Apple Developer account.
 - [x] Add try-catch for JSON parsing in settings_provider.dart
 - [x] Add input length validation for task descriptions (500 char limit)
 - [x] Enable code obfuscation for release builds (documented above)
+- [ ] macOS code notarization for Gatekeeper
+- [ ] Additional themes (beyond light/dark)
+- [ ] More timer duration presets and customization options
 
 ## Editorial note
 
