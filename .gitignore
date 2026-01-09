@@ -74,3 +74,9 @@ coverage/
 *.jar
 *.lock
 !pubspec.lock
+
+# App state/database files
+*.db
+*.sqlite
+*.sqlite3
+shared_preferences.json

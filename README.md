@@ -171,4 +171,4 @@ Hi, I'm Nick. Right now I maintain this myself, but I use the "editorial we" thr
 
 ## License
 
-MIT
+All Rights Reserved. See [LICENSE](LICENSE) for details.
