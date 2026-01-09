@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import '../providers/settings_provider.dart';
 import '../providers/task_provider.dart';
 import '../services/backup_service.dart';
@@ -329,16 +329,18 @@ class SettingsScreen extends StatelessWidget {
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
       final defaultFileName = 'goaly_backup_$timestamp.json';
 
-      // Use save file dialog (works better on desktop)
-      final savePath = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save Backup',
-        fileName: defaultFileName,
-        type: FileType.custom,
-        allowedExtensions: ['json'],
+      // Use save file dialog
+      const jsonTypeGroup = XTypeGroup(
+        label: 'JSON',
+        extensions: ['json'],
+      );
+      final saveLocation = await getSaveLocation(
+        suggestedName: defaultFileName,
+        acceptedTypeGroups: [jsonTypeGroup],
       );
 
-      if (savePath != null) {
-        final file = File(savePath);
+      if (saveLocation != null) {
+        final file = File(saveLocation.path);
         await file.writeAsString(jsonData);
 
         scaffoldMessenger.showSnackBar(
@@ -362,15 +364,15 @@ class SettingsScreen extends StatelessWidget {
 
     try {
       // Pick file
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['json'],
+      const jsonTypeGroup = XTypeGroup(
+        label: 'JSON',
+        extensions: ['json'],
       );
+      final result = await openFile(acceptedTypeGroups: [jsonTypeGroup]);
 
-      if (result == null || result.files.isEmpty) return;
+      if (result == null) return;
 
-      final file = File(result.files.single.path!);
-      final jsonData = await file.readAsString();
+      final jsonData = await result.readAsString();
 
       if (!context.mounted) return;
 

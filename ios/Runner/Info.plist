@@ -47,7 +47,5 @@
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Goaly needs access to your photo library to import backup files.</string>
 </dict>
 </plist>

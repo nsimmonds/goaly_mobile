@@ -132,8 +132,7 @@ lib/
 - `shared_preferences` - Settings persistence
 - `audioplayers` - Completion sounds
 - `path_provider` / `path` - File paths
-- `file_picker` - File selection for backup import
-- `share_plus` - Sharing backup files
+- `file_selector` - File selection for backup import/export
 - `intl` - Date formatting
 
 ## Building for Release
