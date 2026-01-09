@@ -167,7 +167,7 @@ jobs:
           MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
         run: |
           codesign --deep --force --verbose --options runtime \
-            --sign "Developer ID Application: Nick Simmonds ($MACOS_TEAM_ID)" \
+            --sign "Developer ID Application: Nicholas Simmonds ($MACOS_TEAM_ID)" \
             build/macos/Build/Products/Release/goaly_mobile.app
 
       - name: Create DMG
