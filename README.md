@@ -17,6 +17,7 @@ We recognize that sometimes you get into a "flow state" and need to keep working
 - **Pomodoro Timer**: 25-minute work sessions with 5-minute breaks (configurable)
 - **Auto-Cycling**: Work → Break → Work transitions automatically
 - **Random Task Selection**: Each work session picks a new random task
+- **Flow Mode**: Keep working on the same task across multiple sessions
 - **Dark Mode**: Full dark/light theme support
 - **Break Suggestions**: Fun activity ideas shown during breaks (customizable)
 - **Celebration Suggestions**: Reward ideas when completing tasks (customizable)
@@ -33,7 +34,7 @@ Behind the "Advanced Options" toggle you'll find additional features. These are 
 
 ## AI Declaration
 
-There is no AI in Goaly. Your data is your data and will not be used for any kind of training. There are lots of task managers with AI features if you want those; we think there are also lots of people who want an app that predictibly does a thing and does it well. Any suggestions are built directly into the app.
+There is no AI in Goaly. Your data is your data and will not be used for any kind of training. There are lots of task managers with AI features if you want those; we think there are also lots of people who want an app that predictably does a thing and does it well. Any suggestions are built directly into the app.
 
 To be clear, AI *is* used as a coding assistant in work on Goaly. We are not Luddites about the use of AI...well, not strongly Luddite. But the world also needs apps that just do a thing well and do the same thing every time you press the button.
 
@@ -71,9 +72,9 @@ flutter run
 
 1. Tap "Add Your First Task" to go to the Tasks screen
 2. Add some tasks (optionally with time estimates)
-3. Return to home and tap "Start Work Session"
-4. Work on the randomly selected task
-5. When done, tap "Task Complete!" or let the timer run out
+3. Return to home and tap the green timer button to start
+4. Work on the randomly selected task shown in the timer
+5. When done, tap the timer button or let it run out
 6. Choose "Keep Working" for a new task or "Celebrate" to stop
 
 ### Task Dependencies
@@ -99,19 +100,23 @@ lib/
 │   ├── constants.dart        # App constants, DB version
 │   └── theme.dart            # Light/dark themes
 ├── models/
-│   └── task.dart             # Task data model
+│   ├── task.dart             # Task data model
+│   └── tag.dart              # Tag data model
 ├── providers/
 │   ├── settings_provider.dart
 │   ├── task_provider.dart
 │   └── timer_provider.dart
 ├── services/
 │   ├── database_service.dart
-│   └── dependency_validator.dart
+│   ├── dependency_validator.dart
+│   └── backup_service.dart   # JSON export/import
 └── screens/
     ├── home_screen.dart
     ├── task_list_screen.dart
     ├── settings_screen.dart
-    └── stats_screen.dart
+    ├── stats_screen.dart
+    ├── instructions_screen.dart
+    └── about_screen.dart
 ```
 
 **State Management**: Provider pattern with ChangeNotifier
@@ -127,6 +132,9 @@ lib/
 - `shared_preferences` - Settings persistence
 - `audioplayers` - Completion sounds
 - `path_provider` / `path` - File paths
+- `file_picker` - File selection for backup import
+- `share_plus` - Sharing backup files
+- `intl` - Date formatting
 
 ## Building for Release
 
