@@ -52,6 +52,10 @@ dependencies:
   # Utilities
   intl: ^0.18.0
 
+  # Backup/Restore
+  file_picker: ^6.0.0
+  share_plus: ^7.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

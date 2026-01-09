@@ -37,6 +37,10 @@ class TimerProvider with ChangeNotifier {
 
   TaskProvider? _taskProvider;
 
+  // Flow mode - keeps same task through breaks
+  bool _flowMode = false;
+  Task? _flowModeTask;
+
   // Getters
   TimerState get state => _state;
   SessionType get sessionType => _sessionType;
@@ -46,6 +50,8 @@ class TimerProvider with ChangeNotifier {
   bool get isIdle => _state == TimerState.idle;
   int get workMinutes => _workMinutes;
   int get breakMinutes => _breakMinutes;
+  bool get flowMode => _flowMode;
+  Task? get flowModeTask => _flowModeTask;
 
   /// Get remaining seconds in current session
   int get remainingSeconds {
@@ -118,12 +124,55 @@ class TimerProvider with ChangeNotifier {
     _taskProvider = taskProvider;
   }
 
+  /// Set flow mode on/off
+  void setFlowMode(bool enabled, {Task? task}) {
+    _flowMode = enabled;
+    if (enabled && task != null) {
+      _flowModeTask = task;
+    } else if (!enabled) {
+      _flowModeTask = null;
+    }
+    // If enabling mid-session, lock onto current task
+    if (enabled && _currentTask != null && task == null) {
+      _flowModeTask = _currentTask;
+    }
+    notifyListeners();
+  }
+
   /// Start a new work session with a random task
   Future<void> startWorkSession(TaskProvider taskProvider) async {
     if (isRunning) return;
 
-    // Get a random task
-    _currentTask = await taskProvider.getRandomTask();
+    // If flow mode is on and we have a flow mode task, use that
+    if (_flowMode && _flowModeTask != null) {
+      _currentTask = _flowModeTask;
+    } else {
+      // Get a random task
+      _currentTask = await taskProvider.getRandomTask();
+      // In flow mode, update flow mode task to the new task
+      if (_flowMode && _currentTask != null) {
+        _flowModeTask = _currentTask;
+      }
+    }
+
+    _sessionType = SessionType.work;
+    _sessionEndTime = DateTime.now().add(Duration(minutes: _workMinutes));
+    _state = TimerState.workActive;
+    _totalPausedSeconds = 0;
+    _pausedAt = null;
+
+    _startTimer();
+    notifyListeners();
+  }
+
+  /// Start a new work session with a specific task (for flow mode)
+  void startWorkSessionWithTask(Task task) {
+    if (isRunning) return;
+
+    _currentTask = task;
+    if (_flowMode) {
+      _flowModeTask = task;
+    }
 
     _sessionType = SessionType.work;
     _sessionEndTime = DateTime.now().add(Duration(minutes: _workMinutes));
@@ -147,6 +196,47 @@ class TimerProvider with ChangeNotifier {
     _pausedAt = null;
 
     _startTimer();
+    notifyListeners();
+  }
+
+  /// Skip the current break and start next work session
+  Future<void> skipBreak() async {
+    if (_sessionType != SessionType.breakSession) return;
+
+    _timer?.cancel();
+
+    // Start next work session
+    if (_taskProvider != null && _taskProvider!.hasIncompleteTasks) {
+      // In flow mode, reuse the same task if available
+      if (_flowMode && _flowModeTask != null && !_flowModeTask!.completed) {
+        _currentTask = _flowModeTask;
+      } else {
+        _currentTask = await _taskProvider!.getRandomTask();
+        if (_flowMode && _currentTask != null) {
+          _flowModeTask = _currentTask;
+        }
+      }
+
+      if (_currentTask != null) {
+        _sessionType = SessionType.work;
+        _sessionEndTime = DateTime.now().add(Duration(minutes: _workMinutes));
+        _state = TimerState.workActive;
+        _totalPausedSeconds = 0;
+        _pausedAt = null;
+
+        _startTimer();
+        notifyListeners();
+        return;
+      }
+    }
+
+    // No tasks available, return to idle
+    _state = TimerState.idle;
+    _sessionType = SessionType.work;
+    _currentTask = null;
+    _sessionEndTime = null;
+    _totalPausedSeconds = 0;
+    _pausedAt = null;
     notifyListeners();
   }
 
@@ -221,6 +311,8 @@ class TimerProvider with ChangeNotifier {
     _sessionType = SessionType.work;
     _totalPausedSeconds = 0;
     _pausedAt = null;
+    // Clear flow mode task (it's completed), but keep flow mode on
+    _flowModeTask = null;
     notifyListeners();
 
     // Show dialog asking user what to do next
@@ -340,7 +432,16 @@ class TimerProvider with ChangeNotifier {
     } else {
       // Break completed - auto-start next work session
       if (_taskProvider != null && _taskProvider!.hasIncompleteTasks) {
-        _currentTask = await _taskProvider!.getRandomTask();
+        // In flow mode, reuse the same task if it's still incomplete
+        if (_flowMode && _flowModeTask != null && !_flowModeTask!.completed) {
+          _currentTask = _flowModeTask;
+        } else {
+          _currentTask = await _taskProvider!.getRandomTask();
+          // If we got a new task in flow mode, update flow mode task
+          if (_flowMode && _currentTask != null) {
+            _flowModeTask = _currentTask;
+          }
+        }
 
         if (_currentTask != null) {
           _sessionType = SessionType.work;

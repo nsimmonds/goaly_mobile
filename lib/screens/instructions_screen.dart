@@ -26,7 +26,7 @@ class InstructionsScreen extends StatelessWidget {
             title: 'Managing Tasks',
             content: 'Add tasks from the Tasks screen. When you start a work session, '
                 'Goaly randomly picks an incomplete task for you to focus on. '
-                'Tap "Task Complete!" when you finish early, or let the timer run out.',
+                'Tap the task card to mark it complete and move on, or let the timer run out.',
           ),
           _buildSection(
             context,
@@ -58,6 +58,14 @@ class InstructionsScreen extends StatelessWidget {
             content: 'Track your productivity on the Stats screen. See completed tasks, '
                 'total time worked, and how often you beat your estimates. '
                 'Filter by search or tags to analyze specific work.',
+          ),
+          _buildSection(
+            context,
+            icon: Icons.sync,
+            title: 'Flow Mode',
+            content: 'Enable Flow Mode to focus on a single task across multiple pomodoro cycles. '
+                'When enabled, pick your focus task and it will persist through breaks '
+                'until you complete it or turn off flow mode.',
           ),
         ],
       ),

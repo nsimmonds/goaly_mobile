@@ -531,8 +531,16 @@ class _TaskListScreenState extends State<TaskListScreen> {
   Future<void> _showEditTaskDialog(BuildContext context, Task task) async {
     _textController.text = task.description;
     _estimateController.text = task.timeEstimate?.toString() ?? '';
-    _selectedDependencyId = task.dependencyTaskId;
     _selectedTagIds = task.tags.map((t) => t.id!).toSet();
+
+    // Get available tasks first to validate dependency
+    final taskProvider = context.read<TaskProvider>();
+    final availableTasks = taskProvider.getAvailableTasksForDependency(task.id);
+
+    // Only set dependency if it still exists in available tasks
+    final dependencyExists = task.dependencyTaskId == null ||
+        availableTasks.any((t) => t.id == task.dependencyTaskId);
+    _selectedDependencyId = dependencyExists ? task.dependencyTaskId : null;
 
     return showDialog(
       context: context,

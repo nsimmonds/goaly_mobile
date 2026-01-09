@@ -262,4 +262,73 @@ class DatabaseService {
     final db = await database;
     await db.close();
   }
+
+  // Bulk Operations for Backup/Restore
+
+  /// Delete all tasks
+  Future<void> deleteAllTasks() async {
+    final db = await database;
+    await db.delete('task_tags'); // Clear junction table first
+    await db.delete('tasks');
+  }
+
+  /// Delete all tags
+  Future<void> deleteAllTags() async {
+    final db = await database;
+    await db.delete('task_tags'); // Clear junction table first
+    await db.delete('tags');
+  }
+
+  /// Insert a task with a specific ID (for restore)
+  Future<Task> insertTaskWithId(Task task) async {
+    final db = await database;
+    final map = task.toMap();
+    map['id'] = task.id; // Include ID in insert
+    await db.insert('tasks', map, conflictAlgorithm: ConflictAlgorithm.replace);
+    return task;
+  }
+
+  /// Insert a tag with a specific ID (for restore)
+  Future<Tag> insertTagWithId(Tag tag) async {
+    final db = await database;
+    final map = tag.toMap();
+    map['id'] = tag.id; // Include ID in insert
+    await db.insert('tags', map, conflictAlgorithm: ConflictAlgorithm.replace);
+    return tag;
+  }
+
+  /// Get all task-tag associations
+  Future<List<Map<String, int>>> getAllTaskTagAssociations() async {
+    final db = await database;
+    final result = await db.query('task_tags');
+    return result.map((row) => {
+      'task_id': row['task_id'] as int,
+      'tag_id': row['tag_id'] as int,
+    }).toList();
+  }
+
+  /// Check if a task with matching description and createdAt exists
+  Future<bool> taskExists(String description, int createdAtMs) async {
+    final db = await database;
+    final result = await db.query(
+      'tasks',
+      where: 'description = ? AND created_at = ?',
+      whereArgs: [description, createdAtMs],
+      limit: 1,
+    );
+    return result.isNotEmpty;
+  }
+
+  /// Check if a tag with matching name exists
+  Future<Tag?> getTagByName(String name) async {
+    final db = await database;
+    final result = await db.query(
+      'tags',
+      where: 'name = ?',
+      whereArgs: [name],
+      limit: 1,
+    );
+    if (result.isEmpty) return null;
+    return Tag.fromMap(result.first);
+  }
 }

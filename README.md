@@ -1,25 +1,47 @@
 # Goaly Mobile
 
-A Flutter Pomodoro timer app designed for the "disciplined dilettante" - people with many interests who struggle with decision paralysis.
+Goaly is a task management app that uses randomness to get you out of decision paralysis and help motivate you. It acts as a slightly deranged project manager or coach with a pomodoro timer.
 
 ## Philosophy
 
-Instead of agonizing over which task to work on, Goaly picks a random task for you and starts a focused work session. Just add your tasks (dev tickets, side projects, chores, learning goals) and let the app decide what you work on next.
+Instead of agonizing over which task to work on, Goaly picks a random task for you and starts a focused work session. Just add your tasks (dev tickets, side projects, chores, learning goals) and let the app decide what you work on next. 
 
+## Pomodoro Method
+
+Including brief breaks in your work can enhance productivity. The "pomodoro method" involves setting a timer for 25 minutes, working for that 25 minutes, and then giving yourself a 5 minute break. Goaly includes this, and enhances it by pulling from your task list while you work so you aren't also deciding what to work on. It means coming off break is frictionless; you're presented with exactly what to work on next.
+
+We recognize that sometimes you get into a "flow state" and need to keep working on what you're working on. "Flow mode" keeps the pomodoro timer running, but keeps your task the same until you complete it or toggle it off.
+ 
 ## Features
 
 - **Pomodoro Timer**: 25-minute work sessions with 5-minute breaks (configurable)
 - **Auto-Cycling**: Work → Break → Work transitions automatically
 - **Random Task Selection**: Each work session picks a new random task
+- **Dark Mode**: Full dark/light theme support
+- **Break Suggestions**: Fun activity ideas shown during breaks (customizable)
+- **Celebration Suggestions**: Reward ideas when completing tasks (customizable)
+
+## Advanced Features
+
+Behind the "Advanced Options" toggle you'll find additional features. These are completely optional.
+
+- **Task Tagging**: Tag tasks with arbitrary tags for sorting and reporting
 - **Time Tracking**: Tracks actual time spent on each task (excludes pause time)
 - **Task Estimates**: Optional time estimates to compare against actual time
 - **Task Dependencies**: Block tasks until prerequisite tasks are complete
 - **Statistics Dashboard**: View completed tasks, time breakdown, and estimate accuracy
-- **Break Suggestions**: Fun activity ideas shown during breaks (customizable)
-- **Celebration Suggestions**: Reward ideas when completing tasks (customizable)
-- **Dark Mode**: Full dark/light theme support
 
-## Getting Started
+## AI Declaration
+
+There is no AI in Goaly. Your data is your data and will not be used for any kind of training. There are lots of task managers with AI features if you want those; we think there are also lots of people who want an app that predictibly does a thing and does it well. Any suggestions are built directly into the app.
+
+To be clear, AI *is* used as a coding assistant in work on Goaly. We are not Luddites about the use of AI...well, not strongly Luddite. But the world also needs apps that just do a thing well and do the same thing every time you press the button.
+
+## Status
+
+Goaly is in alpha mode and not available to the public. Send an email to n . ick @ ni . ck . s . imm . ond . s Dot Com to request access. Local builds are available if you want to build it yourself.
+
+## Getting Started with a local build
 
 ### Prerequisites
 
@@ -135,6 +157,10 @@ Requires Xcode signing configured with Apple Developer account.
 - [x] Add try-catch for JSON parsing in settings_provider.dart
 - [x] Add input length validation for task descriptions (500 char limit)
 - [x] Enable code obfuscation for release builds (documented above)
+
+## Editorial note
+
+Hi, I'm Nick. Right now I maintain this myself, but I use the "editorial we" throughout to minimize rewriting if I ever hire anyone. Also my cat Freddie helps.
 
 ## License
 

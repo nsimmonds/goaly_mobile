@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/task.dart';
 import '../providers/timer_provider.dart';
 import '../providers/task_provider.dart';
 import '../providers/settings_provider.dart';
@@ -7,6 +10,78 @@ import '../config/constants.dart';
 import '../screens/task_list_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/stats_screen.dart';
+
+/// Paints text along a subtle arc
+class _ArcTextPainter extends CustomPainter {
+  final String text;
+  final TextStyle style;
+  final double radius;
+
+  _ArcTextPainter({
+    required this.text,
+    required this.style,
+    required this.radius,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+    );
+
+    // Calculate total width to center the text
+    double totalWidth = 0;
+    final charWidths = <double>[];
+    for (final char in text.characters) {
+      textPainter.text = TextSpan(text: char, style: style);
+      textPainter.layout();
+      charWidths.add(textPainter.width);
+      totalWidth += textPainter.width;
+    }
+
+    // Calculate the total angle the text will span
+    final totalAngle = totalWidth / radius;
+
+    // Start from center, offset by half the total angle
+    double currentAngle = -totalAngle / 2;
+
+    // Center point - arc center is below the widget
+    final centerX = size.width / 2;
+    final centerY = size.height / 2 + radius;
+
+    int i = 0;
+    for (final char in text.characters) {
+      textPainter.text = TextSpan(text: char, style: style);
+      textPainter.layout();
+
+      final charWidth = charWidths[i];
+      final charAngle = charWidth / radius;
+
+      // Position at middle of this character's arc segment
+      final angle = currentAngle + charAngle / 2;
+
+      final x = centerX + radius * math.sin(angle);
+      final y = centerY - radius * math.cos(angle);
+
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(angle);
+      textPainter.paint(
+        canvas,
+        Offset(-charWidth / 2, -textPainter.height / 2),
+      );
+      canvas.restore();
+
+      currentAngle += charAngle;
+      i++;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ArcTextPainter oldDelegate) {
+    return oldDelegate.text != text || oldDelegate.style != style;
+  }
+}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -96,27 +171,22 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Session Type Indicator
-                  _buildSessionIndicator(timer),
-                  const SizedBox(height: 32),
+                  // Unified Timer-Button
+                  _buildTimerButton(timer, tasks),
+                  const SizedBox(height: 24),
 
-                  // Circular Timer Display
-                  _buildCircularTimer(timer),
-                  const SizedBox(height: 32),
+                  // Control Buttons (pause/stop when running)
+                  if (timer.isRunning || timer.isPaused)
+                    _buildControlButtons(timer),
+                  if (timer.isRunning || timer.isPaused)
+                    const SizedBox(height: 24),
 
-                  // Current Task Display (work) or Break Suggestion (break)
-                  if (timer.sessionType == SessionType.work)
-                    _buildCurrentTask(timer)
-                  else if (_currentBreakSuggestion != null)
-                    _buildBreakSuggestion(),
-                  const SizedBox(height: 48),
-
-                  // Control Buttons
-                  _buildControlButtons(timer, tasks),
+                  // Flow mode toggle (always visible)
+                  _buildFlowModeToggle(timer, tasks),
                   const SizedBox(height: 24),
 
                   // Navigate to Tasks Button
-                  if (!timer.isRunning)
+                  if (timer.isIdle)
                     _buildNavigateToTasksButton(context, tasks),
                 ],
               ),
@@ -127,257 +197,204 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSessionIndicator(TimerProvider timer) {
-    final emoji = timer.sessionType == SessionType.work
-        ? AppConstants.emojiTimer
-        : AppConstants.emojiBreak;
-    final text = timer.sessionType == SessionType.work
-        ? AppConstants.workSession
-        : AppConstants.breakSession;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        child: Text(
-          '$emoji $text',
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCircularTimer(TimerProvider timer) {
-    final progress = timer.progress;
+  /// Unified timer-button widget
+  Widget _buildTimerButton(TimerProvider timer, TaskProvider tasks) {
     final remaining = timer.formatTime(timer.remainingSeconds);
+    final progress = timer.progress;
 
-    return SizedBox(
-      width: 280,
-      height: 280,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Background circle
-          SizedBox(
-            width: 280,
-            height: 280,
-            child: CircularProgressIndicator(
-              value: 1.0,
-              strokeWidth: 12,
-              color: Colors.grey.withValues(alpha: 0.2),
-            ),
-          ),
-          // Progress circle
-          SizedBox(
-            width: 280,
-            height: 280,
-            child: CircularProgressIndicator(
-              value: progress,
-              strokeWidth: 12,
-              color: timer.sessionType == SessionType.work
-                  ? Colors.blue
-                  : Colors.green,
-            ),
-          ),
-          // Time display
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                remaining,
-                style: const TextStyle(
-                  fontSize: 64,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              if (timer.isPaused)
-                const Text(
-                  '⏸️ Paused',
-                  style: TextStyle(fontSize: 18, color: Colors.orange),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+    // Determine colors based on state
+    Color baseColor;
+    Color progressColor;
+    Color textColor;
 
-  Widget _buildCurrentTask(TimerProvider timer) {
-    if (timer.currentTask == null) {
-      return const SizedBox.shrink();
+    if (timer.isIdle) {
+      baseColor = Colors.green;
+      progressColor = Colors.green.shade700;
+      textColor = Colors.white;
+    } else if (timer.sessionType == SessionType.work) {
+      baseColor = Colors.blue;
+      progressColor = Colors.blue.shade700;
+      textColor = Colors.white;
+    } else {
+      baseColor = Colors.purple;
+      progressColor = Colors.purple.shade700;
+      textColor = Colors.white;
     }
 
-    return Card(
-      color: Theme.of(context).colorScheme.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Text(
-              '${AppConstants.emojiGoal} Current Task',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              timer.currentTask!.description,
-              style: TextStyle(
-                fontSize: 20,
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+    // Determine text content
+    String mainText;
+    String subscript;
 
-  Widget _buildBreakSuggestion() {
-    return Card(
-      color: Colors.green.shade50,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            const Text(
-              '💡 Suggestion',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.green,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _currentBreakSuggestion!,
-              style: TextStyle(
-                fontSize: 20,
-                color: Colors.green.shade800,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildControlButtons(TimerProvider timer, TaskProvider tasks) {
     if (timer.isIdle) {
-      return Column(
-        children: [
-          // Start Work Session Button
-          ElevatedButton.icon(
-            onPressed: tasks.hasIncompleteTasks
-                ? () => timer.startWorkSession(tasks)
-                : null,
-            icon: const Icon(Icons.play_arrow, size: 32),
-            label: const Text(
-              'Start Work Session',
-              style: TextStyle(fontSize: 18),
-            ),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 20),
-            ),
-          ),
-          if (!tasks.hasIncompleteTasks)
-            const Padding(
-              padding: EdgeInsets.only(top: 12),
-              child: Text(
-                'Add a task to start working!',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-        ],
-      );
-    } else if (timer.isRunning) {
-      // Check if it's a work session with a task
-      if (timer.sessionType == SessionType.work && timer.currentTask != null) {
-        return Column(
-          children: [
-            // Task Complete button (prominent)
-            ElevatedButton.icon(
-              onPressed: () => timer.completeCurrentTask(context),
-              icon: const Icon(Icons.check_circle, size: 28),
-              label: const Text(
-                'Task Complete!',
-                style: TextStyle(fontSize: 18),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 20),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Pause and Stop buttons (smaller row)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: () => timer.pause(),
-                  icon: const Icon(Icons.pause, size: 20),
-                  label: const Text('Pause'),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton.icon(
-                  onPressed: () => timer.stop(),
-                  icon: Text(AppConstants.emojiStop),
-                  label: const Text('Stop'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.errorContainer,
-                    foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        );
-      } else {
-        // Break session - only Pause/Stop
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton.icon(
-              onPressed: () => timer.pause(),
-              icon: const Icon(Icons.pause),
-              label: const Text('Pause'),
-            ),
-            const SizedBox(width: 16),
-            ElevatedButton.icon(
-              onPressed: () => timer.stop(),
-              icon: Text(AppConstants.emojiStop),
-              label: const Text('Stop'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.errorContainer,
-                foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
-              ),
-            ),
-          ],
-        );
-      }
+      mainText = 'Start Work\nSession';
+      subscript = tasks.hasIncompleteTasks ? 'tap to start' : 'add a task first';
+    } else if (timer.isPaused) {
+      mainText = timer.sessionType == SessionType.work
+          ? (timer.currentTask?.description ?? 'Work Session')
+          : 'Break Time';
+      subscript = 'tap to resume';
+    } else if (timer.sessionType == SessionType.work) {
+      mainText = timer.currentTask?.description ?? 'Work Session';
+      subscript = 'tap if complete';
     } else {
-      // Paused
+      mainText = 'Break Time';
+      subscript = _currentBreakSuggestion ?? 'take a break';
+    }
+
+    // Handle tap
+    void onTap() {
+      if (timer.isIdle) {
+        if (tasks.hasIncompleteTasks) {
+          timer.startWorkSession(tasks);
+        }
+      } else if (timer.isPaused) {
+        timer.resume();
+      } else if (timer.sessionType == SessionType.work) {
+        timer.completeCurrentTask(context);
+      } else {
+        // Break session - skip break
+        timer.skipBreak();
+      }
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 280,
+        height: 280,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Filled background circle
+            Container(
+              width: 280,
+              height: 280,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: baseColor,
+                boxShadow: [
+                  BoxShadow(
+                    color: baseColor.withValues(alpha: 0.4),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+            ),
+            // Progress ring (only when not idle)
+            if (!timer.isIdle)
+              SizedBox(
+                width: 280,
+                height: 280,
+                child: CircularProgressIndicator(
+                  value: progress,
+                  strokeWidth: 8,
+                  color: progressColor,
+                  backgroundColor: Colors.white.withValues(alpha: 0.2),
+                ),
+              ),
+            // Text content
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Main text (task name or action) - with subtle arc
+                  SizedBox(
+                    width: 220,
+                    height: 60,
+                    child: CustomPaint(
+                      painter: _ArcTextPainter(
+                        text: mainText.replaceAll('\n', ' '),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                        radius: 300, // Large radius = subtle curve
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // Time display
+                  Text(
+                    remaining,
+                    style: TextStyle(
+                      fontSize: 48,
+                      fontWeight: FontWeight.w300,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Subscript
+                  if (timer.isPaused)
+                    Text(
+                      '⏸️ Paused',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.orange.shade200,
+                      ),
+                    ),
+                  Text(
+                    subscript,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontStyle: FontStyle.italic,
+                      color: textColor.withValues(alpha: 0.8),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Control buttons - icon-only pause/stop (or resume when paused)
+  Widget _buildControlButtons(TimerProvider timer) {
+    if (timer.isRunning) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Resume Button
-          ElevatedButton.icon(
+          // Pause button (icon only)
+          IconButton.filled(
+            onPressed: () => timer.pause(),
+            icon: const Icon(Icons.pause),
+            tooltip: 'Pause',
+          ),
+          const SizedBox(width: 24),
+          // Stop button (icon only)
+          IconButton.filled(
+            onPressed: () => timer.stop(),
+            icon: const Icon(Icons.stop),
+            tooltip: 'Stop',
+            style: IconButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.errorContainer,
+              foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
+            ),
+          ),
+        ],
+      );
+    } else if (timer.isPaused) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Resume button (icon only)
+          IconButton.filled(
             onPressed: () => timer.resume(),
             icon: const Icon(Icons.play_arrow),
-            label: const Text('Resume'),
+            tooltip: 'Resume',
           ),
-          const SizedBox(width: 16),
-          // Stop Button
-          ElevatedButton.icon(
+          const SizedBox(width: 24),
+          // Stop button (icon only)
+          IconButton.filled(
             onPressed: () => timer.stop(),
-            icon: Text(AppConstants.emojiStop),
-            label: const Text('Stop'),
-            style: ElevatedButton.styleFrom(
+            icon: const Icon(Icons.stop),
+            tooltip: 'Stop',
+            style: IconButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.errorContainer,
               foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
             ),
@@ -385,6 +402,119 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       );
     }
+    return const SizedBox.shrink();
+  }
+
+  /// Show flow mode explanation dialog
+  void _showFlowModeHelp() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.sync, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('Flow Mode'),
+          ],
+        ),
+        content: const Text(
+          'Flow mode keeps you focused on a single task across multiple pomodoro cycles.\n\n'
+          'When enabled, your chosen task will persist through breaks instead of switching to a random task.\n\n'
+          'Great for deep work sessions on complex tasks.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Flow mode toggle
+  Widget _buildFlowModeToggle(TimerProvider timer, TaskProvider tasks) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (timer.flowMode)
+          const Icon(Icons.sync, size: 18, color: Colors.blue),
+        if (timer.flowMode) const SizedBox(width: 8),
+        Text(
+          'Flow mode',
+          style: TextStyle(
+            color: timer.flowMode ? Colors.blue : Colors.grey,
+          ),
+        ),
+        IconButton(
+          icon: Icon(
+            Icons.help_outline,
+            size: 18,
+            color: Colors.grey.shade500,
+          ),
+          onPressed: () => _showFlowModeHelp(),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          tooltip: 'What is flow mode?',
+        ),
+        const SizedBox(width: 4),
+        Switch(
+          value: timer.flowMode,
+          onChanged: (enabled) async {
+            if (enabled) {
+              // If idle, show task picker
+              if (timer.isIdle && tasks.hasIncompleteTasks) {
+                final selectedTask = await _showTaskPicker(tasks);
+                if (selectedTask != null) {
+                  timer.setFlowMode(true, task: selectedTask);
+                }
+              } else if (timer.isRunning || timer.isPaused) {
+                // Mid-session, lock onto current task
+                timer.setFlowMode(true);
+              }
+            } else {
+              timer.setFlowMode(false);
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  /// Task picker dialog for flow mode
+  Future<Task?> _showTaskPicker(TaskProvider tasks) async {
+    final incompleteTasks = tasks.incompleteTasks
+        .where((t) => !tasks.isTaskBlocked(t))
+        .toList();
+
+    if (incompleteTasks.isEmpty) return null;
+
+    return showDialog<Task>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Choose Focus Task'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: incompleteTasks.length,
+            itemBuilder: (context, index) {
+              final task = incompleteTasks[index];
+              return ListTile(
+                title: Text(task.description),
+                onTap: () => Navigator.pop(context, task),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildNavigateToTasksButton(BuildContext context, TaskProvider tasks) {

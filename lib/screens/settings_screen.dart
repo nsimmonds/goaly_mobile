@@ -1,6 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/task_provider.dart';
+import '../services/backup_service.dart';
 import '../config/constants.dart';
 import 'instructions_screen.dart';
 import 'about_screen.dart';
@@ -66,6 +73,13 @@ class SettingsScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 _buildResetSuggestionsCard(context, settings),
               ],
+              const SizedBox(height: 24),
+
+              // Backup & Restore Section
+              _buildSectionHeader(context, 'Backup & Restore'),
+              _buildExportCard(context),
+              const SizedBox(height: 8),
+              _buildImportCard(context),
               const SizedBox(height: 24),
 
               // Other Section
@@ -270,6 +284,182 @@ class SettingsScreen extends StatelessWidget {
         },
       ),
     );
+  }
+
+  Widget _buildExportCard(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.upload_file),
+        title: const Text('Export Tasks'),
+        subtitle: const Text('Save all tasks and tags to a file'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => _exportTasks(context),
+      ),
+    );
+  }
+
+  Widget _buildImportCard(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.download),
+        title: const Text('Import Tasks'),
+        subtitle: const Text('Restore tasks from a backup file'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => _importTasks(context),
+      ),
+    );
+  }
+
+  Future<void> _exportTasks(BuildContext context) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final backupService = BackupService();
+      final jsonData = await backupService.exportToJson();
+
+      // Close loading indicator
+      if (context.mounted) Navigator.pop(context);
+
+      // Generate default filename
+      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+      final defaultFileName = 'goaly_backup_$timestamp.json';
+
+      // Use save file dialog (works better on desktop)
+      final savePath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Backup',
+        fileName: defaultFileName,
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+
+      if (savePath != null) {
+        final file = File(savePath);
+        await file.writeAsString(jsonData);
+
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('Backup saved successfully')),
+        );
+      }
+    } catch (e) {
+      // Close loading indicator if still open
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Export failed: $e')),
+      );
+    }
+  }
+
+  Future<void> _importTasks(BuildContext context) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    try {
+      // Pick file
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final file = File(result.files.single.path!);
+      final jsonData = await file.readAsString();
+
+      if (!context.mounted) return;
+
+      // Ask user for import mode
+      final replace = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Import Mode'),
+          content: const Text('How do you want to import the backup?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Merge'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Replace All'),
+            ),
+          ],
+        ),
+      );
+
+      if (replace == null || !context.mounted) return;
+
+      // Confirm if replacing
+      if (replace) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Replace All Data?'),
+            content: const Text(
+              'This will delete all your existing tasks and tags. This cannot be undone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Replace'),
+              ),
+            ],
+          ),
+        );
+
+        if (confirmed != true || !context.mounted) return;
+      }
+
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final backupService = BackupService();
+      final importResult = await backupService.importFromJson(jsonData, replace: replace);
+
+      // Close loading indicator
+      if (context.mounted) Navigator.pop(context);
+
+      // Reload tasks in provider
+      if (context.mounted) {
+        await context.read<TaskProvider>().loadTasks();
+      }
+
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text(importResult.summary)),
+      );
+    } catch (e) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Import failed: $e')),
+      );
+    }
   }
 
   Widget _buildInstructionsCard(BuildContext context) {
