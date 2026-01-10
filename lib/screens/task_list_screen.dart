@@ -18,14 +18,17 @@ class _TaskListScreenState extends State<TaskListScreen> {
   final TextEditingController _textController = TextEditingController();
   final TextEditingController _estimateController = TextEditingController();
   final TextEditingController _newTagController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
   int? _selectedDependencyId;
   Set<int> _selectedTagIds = {};
+  String? _notes;
 
   @override
   void dispose() {
     _textController.dispose();
     _estimateController.dispose();
     _newTagController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -241,8 +244,10 @@ class _TaskListScreenState extends State<TaskListScreen> {
     _textController.clear();
     _estimateController.clear();
     _newTagController.clear();
+    _notesController.clear();
     _selectedDependencyId = null;
     _selectedTagIds = {};
+    _notes = null;
 
     return showDialog(
       context: context,
@@ -257,23 +262,25 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
             return AlertDialog(
               title: const Text('Add New Task'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+              content: SizedBox(
+                width: 300,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                     // Description field
                     TextField(
                       controller: _textController,
                       autofocus: true,
                       decoration: InputDecoration(
-                        labelText: 'Task Description',
+                        labelText: 'Task Name',
                         hintText: AppConstants.addTaskHint,
                         border: const OutlineInputBorder(),
                         counterText: '',
                       ),
                       maxLines: 3,
-                      maxLength: 500,
+                      maxLength: 31,
                       textCapitalization: TextCapitalization.sentences,
                     ),
                     const SizedBox(height: 12),
@@ -376,8 +383,19 @@ class _TaskListScreenState extends State<TaskListScreen> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 16),
+
+                      // Notes button
+                      TextButton.icon(
+                        icon: Icon(
+                          _notes?.isNotEmpty == true ? Icons.note : Icons.note_add_outlined,
+                        ),
+                        label: Text(_notes?.isNotEmpty == true ? 'Edit Notes' : 'Add Notes'),
+                        onPressed: () => _showNotesDialog(context, setState),
+                      ),
                     ],
                   ],
+                  ),
                 ),
               ),
               actions: [
@@ -446,11 +464,55 @@ class _TaskListScreenState extends State<TaskListScreen> {
     }
   }
 
+  Future<void> _showNotesDialog(BuildContext context, StateSetter parentSetState) async {
+    _notesController.text = _notes ?? '';
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Notes'),
+          content: TextField(
+            controller: _notesController,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Add notes about this task...',
+              border: OutlineInputBorder(),
+            ),
+            maxLines: 5,
+            maxLength: 1000,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            if (_notes?.isNotEmpty == true)
+              TextButton(
+                onPressed: () => Navigator.pop(context, ''),
+                child: const Text('Clear'),
+              ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, _notesController.text),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result != null) {
+      parentSetState(() {
+        _notes = result.isEmpty ? null : result;
+      });
+    }
+  }
+
   Future<void> _saveTask(BuildContext context) async {
     final description = _textController.text.trim();
     if (description.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Task description cannot be empty')),
+        const SnackBar(content: Text('Task name cannot be empty')),
       );
       return;
     }
@@ -486,6 +548,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
       description,
       estimate,
       _selectedDependencyId,
+      notes: _notes,
     );
 
     // Add selected tags to the task
@@ -534,6 +597,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
     _textController.text = task.description;
     _estimateController.text = task.timeEstimate?.toString() ?? '';
     _selectedTagIds = task.tags.map((t) => t.id!).toSet();
+    _notes = task.notes;
 
     // Get available tasks first to validate dependency
     final taskProvider = context.read<TaskProvider>();
@@ -557,25 +621,27 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
             return AlertDialog(
               title: const Text('Edit Task'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      controller: _textController,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        labelText: 'Task Description',
-                        hintText: AppConstants.addTaskHint,
-                        border: const OutlineInputBorder(),
-                        counterText: '',
+              content: SizedBox(
+                width: 300,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: _textController,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          labelText: 'Task Name',
+                          hintText: AppConstants.addTaskHint,
+                          border: const OutlineInputBorder(),
+                          counterText: '',
+                        ),
+                        maxLines: 3,
+                        maxLength: 31,
+                        textCapitalization: TextCapitalization.sentences,
                       ),
-                      maxLines: 3,
-                      maxLength: 500,
-                      textCapitalization: TextCapitalization.sentences,
-                    ),
-                    const SizedBox(height: 12),
+                      const SizedBox(height: 12),
 
                     Row(
                       children: [
@@ -670,8 +736,19 @@ class _TaskListScreenState extends State<TaskListScreen> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 16),
+
+                      // Notes button
+                      TextButton.icon(
+                        icon: Icon(
+                          _notes?.isNotEmpty == true ? Icons.note : Icons.note_add_outlined,
+                        ),
+                        label: Text(_notes?.isNotEmpty == true ? 'Edit Notes' : 'Add Notes'),
+                        onPressed: () => _showNotesDialog(context, setState),
+                      ),
                     ],
-                  ],
+                    ],
+                  ),
                 ),
               ),
               actions: [
@@ -695,7 +772,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
     final description = _textController.text.trim();
     if (description.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Task description cannot be empty')),
+        const SnackBar(content: Text('Task name cannot be empty')),
       );
       return;
     }
@@ -732,6 +809,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
       description: description,
       timeEstimate: estimate,
       dependencyTaskId: _selectedDependencyId,
+      notes: _notes,
     );
     await taskProvider.updateTask(updatedTask);
 

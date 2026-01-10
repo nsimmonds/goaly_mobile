@@ -76,6 +76,7 @@ class BackupService {
         'timeEstimate': task.timeEstimate,
         'dependencyTaskId': task.dependencyTaskId,
         'totalTimeSpent': task.totalTimeSpent,
+        'notes': task.notes,
         'tagIds': taskTagIds[task.id] ?? [],
       }).toList(),
     };
@@ -205,6 +206,14 @@ class BackupService {
     if (task['tagIds'] != null && task['tagIds'] is! List) {
       return 'Task $index: invalid tagIds';
     }
+    if (task['notes'] != null) {
+      if (task['notes'] is! String) {
+        return 'Task $index: invalid notes';
+      }
+      if ((task['notes'] as String).length > AppConstants.maxTaskNotes) {
+        return 'Task $index: notes too long (max ${AppConstants.maxTaskNotes} characters)';
+      }
+    }
     return null;
   }
 
@@ -277,6 +286,7 @@ class BackupService {
           timeEstimate: taskData['timeEstimate'] as int?,
           dependencyTaskId: taskData['dependencyTaskId'] as int?,
           totalTimeSpent: taskData['totalTimeSpent'] as int? ?? 0,
+          notes: taskData['notes'] as String?,
         );
         await _db.insertTaskWithId(task);
 
@@ -363,6 +373,7 @@ class BackupService {
           timeEstimate: taskData['timeEstimate'] as int?,
           dependencyTaskId: null, // Set in second pass
           totalTimeSpent: taskData['totalTimeSpent'] as int? ?? 0,
+          notes: taskData['notes'] as String?,
         );
 
         final newTask = await _db.createTask(task);

@@ -50,12 +50,12 @@ class TaskProvider with ChangeNotifier {
   Future<void> addTask(String description) async {
     final trimmed = description.trim();
     if (trimmed.isEmpty) {
-      _errorMessage = 'Task description cannot be empty';
+      _errorMessage = 'Task name cannot be empty';
       notifyListeners();
       return;
     }
     if (trimmed.length > AppConstants.maxTaskDescription) {
-      _errorMessage = 'Task description too long (max ${AppConstants.maxTaskDescription} characters)';
+      _errorMessage = 'Task name too long (max ${AppConstants.maxTaskDescription} characters)';
       notifyListeners();
       return;
     }
@@ -74,21 +74,27 @@ class TaskProvider with ChangeNotifier {
     }
   }
 
-  /// Add a new task with time estimate and dependency
+  /// Add a new task with time estimate, dependency, and notes
   /// Returns the created task, or null if creation failed
   Future<Task?> addTaskWithDetails(
     String description,
     int? timeEstimate,
-    int? dependencyTaskId,
-  ) async {
+    int? dependencyTaskId, {
+    String? notes,
+  }) async {
     final trimmed = description.trim();
     if (trimmed.isEmpty) {
-      _errorMessage = 'Task description cannot be empty';
+      _errorMessage = 'Task name cannot be empty';
       notifyListeners();
       return null;
     }
     if (trimmed.length > AppConstants.maxTaskDescription) {
-      _errorMessage = 'Task description too long (max ${AppConstants.maxTaskDescription} characters)';
+      _errorMessage = 'Task name too long (max ${AppConstants.maxTaskDescription} characters)';
+      notifyListeners();
+      return null;
+    }
+    if (notes != null && notes.length > AppConstants.maxTaskNotes) {
+      _errorMessage = 'Notes too long (max ${AppConstants.maxTaskNotes} characters)';
       notifyListeners();
       return null;
     }
@@ -101,6 +107,7 @@ class TaskProvider with ChangeNotifier {
         description: description.trim(),
         timeEstimate: timeEstimate,
         dependencyTaskId: dependencyTaskId,
+        notes: notes?.trim(),
       );
       final createdTask = await _db.createTask(task);
       _tasks.insert(0, createdTask);
@@ -116,12 +123,17 @@ class TaskProvider with ChangeNotifier {
   /// Update an existing task
   Future<void> updateTask(Task task) async {
     if (task.description.trim().isEmpty) {
-      _errorMessage = 'Task description cannot be empty';
+      _errorMessage = 'Task name cannot be empty';
       notifyListeners();
       return;
     }
     if (task.description.length > AppConstants.maxTaskDescription) {
-      _errorMessage = 'Task description too long (max ${AppConstants.maxTaskDescription} characters)';
+      _errorMessage = 'Task name too long (max ${AppConstants.maxTaskDescription} characters)';
+      notifyListeners();
+      return;
+    }
+    if (task.notes != null && task.notes!.length > AppConstants.maxTaskNotes) {
+      _errorMessage = 'Notes too long (max ${AppConstants.maxTaskNotes} characters)';
       notifyListeners();
       return;
     }

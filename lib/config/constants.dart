@@ -6,10 +6,11 @@ class AppConstants {
 
   // Database
   static const String dbName = 'goaly.db';
-  static const int dbVersion = 4;
+  static const int dbVersion = 5;
 
   // Validation Limits
-  static const int maxTaskDescription = 255;
+  static const int maxTaskDescription = 31;
+  static const int maxTaskNotes = 1000;
   static const int maxTagName = 31;
   static const int maxTasks = 1000;
   static const int maxTags = 1000;

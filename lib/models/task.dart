@@ -9,6 +9,7 @@ class Task {
   final int? timeEstimate;      // Minutes, nullable
   final int? dependencyTaskId;  // Task ID, nullable
   final int totalTimeSpent;     // Seconds, default 0
+  final String? notes;          // Optional notes, nullable
   final List<Tag> tags;         // Tags (loaded separately from junction table)
 
   Task({
@@ -20,6 +21,7 @@ class Task {
     this.timeEstimate,
     this.dependencyTaskId,
     this.totalTimeSpent = 0,
+    this.notes,
     List<Tag>? tags,
   })  : createdAt = createdAt ?? DateTime.now(),
         tags = tags ?? const [];
@@ -35,6 +37,7 @@ class Task {
       'time_estimate': timeEstimate,
       'dependency_task_id': dependencyTaskId,
       'total_time_spent': totalTimeSpent,
+      'notes': notes,
     };
   }
 
@@ -51,6 +54,7 @@ class Task {
       timeEstimate: map['time_estimate'] as int?,
       dependencyTaskId: map['dependency_task_id'] as int?,
       totalTimeSpent: map['total_time_spent'] as int? ?? 0,
+      notes: map['notes'] as String?,
     );
   }
 
@@ -64,6 +68,7 @@ class Task {
     int? timeEstimate,
     int? dependencyTaskId,
     int? totalTimeSpent,
+    String? notes,
     List<Tag>? tags,
   }) {
     return Task(
@@ -75,6 +80,7 @@ class Task {
       timeEstimate: timeEstimate ?? this.timeEstimate,
       dependencyTaskId: dependencyTaskId ?? this.dependencyTaskId,
       totalTimeSpent: totalTimeSpent ?? this.totalTimeSpent,
+      notes: notes ?? this.notes,
       tags: tags ?? this.tags,
     );
   }

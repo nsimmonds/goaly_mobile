@@ -38,7 +38,8 @@ class DatabaseService {
         completed_at INTEGER,
         time_estimate INTEGER,
         dependency_task_id INTEGER,
-        total_time_spent INTEGER DEFAULT 0
+        total_time_spent INTEGER DEFAULT 0,
+        notes TEXT
       )
     ''');
 
@@ -105,6 +106,10 @@ class DatabaseService {
 
       await db.execute('CREATE INDEX idx_task_tags_task_id ON task_tags(task_id)');
       await db.execute('CREATE INDEX idx_task_tags_tag_id ON task_tags(tag_id)');
+    }
+    if (oldVersion < 5) {
+      // Add notes column for version 5
+      await db.execute('ALTER TABLE tasks ADD COLUMN notes TEXT');
     }
   }
 
