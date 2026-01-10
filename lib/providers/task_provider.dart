@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../config/constants.dart';
 import '../models/task.dart';
 import '../models/tag.dart';
 import '../services/database_service.dart';
@@ -47,8 +48,14 @@ class TaskProvider with ChangeNotifier {
 
   /// Add a new task
   Future<void> addTask(String description) async {
-    if (description.trim().isEmpty) {
+    final trimmed = description.trim();
+    if (trimmed.isEmpty) {
       _errorMessage = 'Task description cannot be empty';
+      notifyListeners();
+      return;
+    }
+    if (trimmed.length > AppConstants.maxTaskDescription) {
+      _errorMessage = 'Task description too long (max ${AppConstants.maxTaskDescription} characters)';
       notifyListeners();
       return;
     }
@@ -74,8 +81,14 @@ class TaskProvider with ChangeNotifier {
     int? timeEstimate,
     int? dependencyTaskId,
   ) async {
-    if (description.trim().isEmpty) {
+    final trimmed = description.trim();
+    if (trimmed.isEmpty) {
       _errorMessage = 'Task description cannot be empty';
+      notifyListeners();
+      return null;
+    }
+    if (trimmed.length > AppConstants.maxTaskDescription) {
+      _errorMessage = 'Task description too long (max ${AppConstants.maxTaskDescription} characters)';
       notifyListeners();
       return null;
     }
@@ -102,6 +115,17 @@ class TaskProvider with ChangeNotifier {
 
   /// Update an existing task
   Future<void> updateTask(Task task) async {
+    if (task.description.trim().isEmpty) {
+      _errorMessage = 'Task description cannot be empty';
+      notifyListeners();
+      return;
+    }
+    if (task.description.length > AppConstants.maxTaskDescription) {
+      _errorMessage = 'Task description too long (max ${AppConstants.maxTaskDescription} characters)';
+      notifyListeners();
+      return;
+    }
+
     _errorMessage = null;
 
     try {
@@ -255,12 +279,30 @@ class TaskProvider with ChangeNotifier {
   // Tag Management
 
   /// Create a new tag
-  Future<Tag> createTag(String name) async {
-    final tag = await _db.createTag(name);
-    _tags.add(tag);
-    _tags.sort((a, b) => a.name.compareTo(b.name));
-    notifyListeners();
-    return tag;
+  Future<Tag?> createTag(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) {
+      _errorMessage = 'Tag name cannot be empty';
+      notifyListeners();
+      return null;
+    }
+    if (trimmed.length > AppConstants.maxTagName) {
+      _errorMessage = 'Tag name too long (max ${AppConstants.maxTagName} characters)';
+      notifyListeners();
+      return null;
+    }
+
+    try {
+      final tag = await _db.createTag(trimmed);
+      _tags.add(tag);
+      _tags.sort((a, b) => a.name.compareTo(b.name));
+      notifyListeners();
+      return tag;
+    } catch (e) {
+      _errorMessage = 'Failed to create tag: $e';
+      notifyListeners();
+      return null;
+    }
   }
 
   /// Add a tag to a task

@@ -8,6 +8,12 @@ class AppConstants {
   static const String dbName = 'goaly.db';
   static const int dbVersion = 4;
 
+  // Validation Limits
+  static const int maxTaskDescription = 255;
+  static const int maxTagName = 31;
+  static const int maxTasks = 1000;
+  static const int maxTags = 1000;
+
   // Tag Color Palette (as Color.value integers)
   static const List<int> tagColorPalette = [
     0xFF5C6BC0, // Indigo

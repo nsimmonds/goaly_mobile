@@ -438,9 +438,11 @@ class _TaskListScreenState extends State<TaskListScreen> {
     if (tagName != null && tagName.isNotEmpty && context.mounted) {
       final taskProvider = context.read<TaskProvider>();
       final newTag = await taskProvider.createTag(tagName);
-      parentSetState(() {
-        _selectedTagIds.add(newTag.id!);
-      });
+      if (newTag != null) {
+        parentSetState(() {
+          _selectedTagIds.add(newTag.id!);
+        });
+      }
     }
   }
 
