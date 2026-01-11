@@ -132,13 +132,15 @@ class _TaskListScreenState extends State<TaskListScreen> {
                     ? const Icon(Icons.lock, color: Colors.orange, size: 28)
                     : Checkbox(
                         value: task.completed,
-                        onChanged: task.completed
-                            ? null
-                            : (value) {
-                                if (value == true && task.id != null) {
-                                  provider.completeTask(task.id!);
-                                }
-                              },
+                        onChanged: (value) {
+                          if (task.id != null) {
+                            if (value == true) {
+                              provider.completeTask(task.id!);
+                            } else {
+                              provider.reopenTask(task.id!);
+                            }
+                          }
+                        },
                       ),
                 title: Text(
                   task.description,

@@ -16,6 +16,7 @@ class SettingsProvider with ChangeNotifier {
   bool _soundEnabled = true;
   bool _suggestionsEnabled = true;
   bool _advancedTaskOptions = false;
+  bool _focusLockEnabled = false;
   List<String> _breakSuggestions = List.from(AppConstants.defaultBreakSuggestions);
   List<String> _celebrationSuggestions = List.from(AppConstants.defaultCelebrationSuggestions);
 
@@ -27,6 +28,7 @@ class SettingsProvider with ChangeNotifier {
   bool get isInitialized => _isInitialized;
   bool get suggestionsEnabled => _suggestionsEnabled;
   bool get advancedTaskOptions => _advancedTaskOptions;
+  bool get focusLockEnabled => _focusLockEnabled;
   List<String> get breakSuggestions => List.unmodifiable(_breakSuggestions);
   List<String> get celebrationSuggestions => List.unmodifiable(_celebrationSuggestions);
 
@@ -46,6 +48,7 @@ class SettingsProvider with ChangeNotifier {
     _soundEnabled = _prefs.getBool(AppConstants.keySoundEnabled) ?? true;
     _suggestionsEnabled = _prefs.getBool(AppConstants.keySuggestionsEnabled) ?? true;
     _advancedTaskOptions = _prefs.getBool(AppConstants.keyAdvancedTaskOptions) ?? false;
+    _focusLockEnabled = _prefs.getBool(AppConstants.keyFocusLockEnabled) ?? false;
 
     final breakJson = _prefs.getString(AppConstants.keyBreakSuggestions);
     if (breakJson != null) {
@@ -105,6 +108,13 @@ class SettingsProvider with ChangeNotifier {
   Future<void> setAdvancedTaskOptions(bool value) async {
     _advancedTaskOptions = value;
     await _prefs.setBool(AppConstants.keyAdvancedTaskOptions, value);
+    notifyListeners();
+  }
+
+  /// Toggle focus lock (screen pinning prompt)
+  Future<void> toggleFocusLock() async {
+    _focusLockEnabled = !_focusLockEnabled;
+    await _prefs.setBool(AppConstants.keyFocusLockEnabled, _focusLockEnabled);
     notifyListeners();
   }
 
@@ -168,6 +178,7 @@ class SettingsProvider with ChangeNotifier {
     _breakMinutes = AppConstants.defaultBreakMinutes;
     _soundEnabled = true;
     _suggestionsEnabled = true;
+    _focusLockEnabled = false;
     _breakSuggestions = List.from(AppConstants.defaultBreakSuggestions);
     _celebrationSuggestions = List.from(AppConstants.defaultCelebrationSuggestions);
 
@@ -176,6 +187,7 @@ class SettingsProvider with ChangeNotifier {
     await _prefs.setInt(AppConstants.keyBreakMinutes, _breakMinutes);
     await _prefs.setBool(AppConstants.keySoundEnabled, _soundEnabled);
     await _prefs.setBool(AppConstants.keySuggestionsEnabled, _suggestionsEnabled);
+    await _prefs.setBool(AppConstants.keyFocusLockEnabled, _focusLockEnabled);
     await _prefs.setString(AppConstants.keyBreakSuggestions, jsonEncode(_breakSuggestions));
     await _prefs.setString(AppConstants.keyCelebrationSuggestions, jsonEncode(_celebrationSuggestions));
 

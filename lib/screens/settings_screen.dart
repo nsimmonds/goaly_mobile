@@ -44,6 +44,11 @@ class SettingsScreen extends StatelessWidget {
               _buildSoundCard(context, settings),
               const SizedBox(height: 24),
 
+              // Focus Section
+              _buildSectionHeader(context, 'Focus'),
+              _buildFocusLockCard(context, settings),
+              const SizedBox(height: 24),
+
               // Suggestions Section
               _buildSectionHeader(context, 'Suggestions'),
               _buildSuggestionsToggle(context, settings),
@@ -177,6 +182,21 @@ class SettingsScreen extends StatelessWidget {
         secondary: const Icon(Icons.volume_up),
         value: settings.soundEnabled,
         onChanged: (value) => settings.toggleSound(),
+      ),
+    );
+  }
+
+  Widget _buildFocusLockCard(BuildContext context, SettingsProvider settings) {
+    return Card(
+      child: SwitchListTile(
+        title: const Text('Screen Pinning'),
+        subtitle: const Text('Prompt to lock screen when session starts'),
+        secondary: Text(
+          AppConstants.emojiLock,
+          style: const TextStyle(fontSize: 24),
+        ),
+        value: settings.focusLockEnabled,
+        onChanged: (value) => settings.toggleFocusLock(),
       ),
     );
   }

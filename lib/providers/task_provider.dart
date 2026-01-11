@@ -175,6 +175,28 @@ class TaskProvider with ChangeNotifier {
     }
   }
 
+  /// Reopen a completed task (preserves time spent)
+  Future<void> reopenTask(int taskId) async {
+    _errorMessage = null;
+
+    try {
+      await _db.reopenTask(taskId);
+
+      // Update local list
+      final index = _tasks.indexWhere((task) => task.id == taskId);
+      if (index != -1) {
+        _tasks[index] = _tasks[index].copyWith(
+          completed: false,
+          completedAt: null,
+        );
+        notifyListeners();
+      }
+    } catch (e) {
+      _errorMessage = 'Failed to reopen task: $e';
+      notifyListeners();
+    }
+  }
+
   /// Complete a task and add accumulated time
   Future<void> completeTaskWithTime(int taskId, int additionalSeconds) async {
     _errorMessage = null;

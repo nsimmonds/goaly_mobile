@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -128,6 +129,75 @@ class _HomeScreenState extends State<HomeScreen> {
     _wasInBreak = isInBreak;
   }
 
+  /// Start a work session, optionally showing screen pinning prompt
+  Future<void> _startWorkSession(TimerProvider timer, TaskProvider tasks) async {
+    final settings = context.read<SettingsProvider>();
+
+    if (settings.focusLockEnabled) {
+      final proceed = await _showScreenPinningDialog();
+      if (proceed != true) return;
+    }
+
+    timer.startWorkSession(tasks);
+  }
+
+  /// Show dialog explaining how to enable screen pinning
+  Future<bool?> _showScreenPinningDialog() {
+    final isAndroid = Platform.isAndroid;
+    final isIOS = Platform.isIOS;
+
+    String instructions;
+    if (isAndroid) {
+      instructions = '1. Open recent apps (square button)\n'
+          '2. Tap the app icon at the top of Goaly\'s card\n'
+          '3. Select "Pin" or "Screen pin"\n\n'
+          'To unpin: Hold Back + Overview buttons';
+    } else if (isIOS) {
+      instructions = '1. Triple-click the side button to start Guided Access\n'
+          '2. Tap "Start" in the top right\n\n'
+          'To exit: Triple-click side button and enter passcode\n\n'
+          'Note: Enable in Settings → Accessibility → Guided Access first';
+    } else {
+      // Desktop - not applicable
+      instructions = 'Screen pinning is only available on mobile devices.';
+    }
+
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Text(AppConstants.emojiLock),
+            const SizedBox(width: 8),
+            const Text('Pin Your Screen'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'For distraction-free focus, pin Goaly to your screen:',
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 12),
+            Text(instructions),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Start Session'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -245,7 +315,7 @@ class _HomeScreenState extends State<HomeScreen> {
     void onTap() {
       if (timer.isIdle) {
         if (tasks.hasIncompleteTasks) {
-          timer.startWorkSession(tasks);
+          _startWorkSession(timer, tasks);
         }
       } else if (timer.isPaused) {
         timer.resume();

@@ -184,6 +184,20 @@ class DatabaseService {
     );
   }
 
+  /// Reopen a completed task (preserves time spent)
+  Future<int> reopenTask(int id) async {
+    final db = await database;
+    return db.update(
+      'tasks',
+      {
+        'completed': 0,
+        'completed_at': null,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   /// Delete a task
   Future<int> deleteTask(int id) async {
     final db = await database;
