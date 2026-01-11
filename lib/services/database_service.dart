@@ -71,6 +71,29 @@ class DatabaseService {
 
     await db.execute('CREATE INDEX idx_task_tags_task_id ON task_tags(task_id)');
     await db.execute('CREATE INDEX idx_task_tags_tag_id ON task_tags(tag_id)');
+
+    // Seed demo tasks for new users
+    await _seedDemoTasks(db);
+  }
+
+  Future<void> _seedDemoTasks(Database db) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    final demoTasks = [
+      {'description': 'Complete your first task!', 'time_estimate': 1},
+      {'description': 'Add your own task', 'time_estimate': 2},
+      {'description': 'Explore the settings', 'time_estimate': 3},
+    ];
+
+    for (final task in demoTasks) {
+      await db.insert('tasks', {
+        'description': task['description'],
+        'completed': 0,
+        'created_at': now,
+        'time_estimate': task['time_estimate'],
+        'total_time_spent': 0,
+      });
+    }
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
