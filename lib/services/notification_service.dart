@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 
@@ -19,8 +20,12 @@ class NotificationService {
 
   /// Initialize the notification plugin and request permissions
   Future<void> init() async {
-    // Initialize timezone
+    // Initialize timezone database and detect device timezone
     tz_data.initializeTimeZones();
+    final tzInfo = await FlutterTimezone.getLocalTimezone();
+    final tzName = tzInfo.identifier;
+    tz.setLocalLocation(tz.getLocation(tzName));
+    debugPrint('NotificationService: Timezone set to $tzName');
 
     // Android settings
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -65,13 +70,14 @@ class NotificationService {
 
   Future<void> _requestPermissions() async {
     // Android 13+ permission request
-    await _plugin
+    final androidGranted = await _plugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
+    debugPrint('NotificationService: Android permission granted: $androidGranted');
 
     // iOS permission request (handled by DarwinInitializationSettings but can be explicit)
-    await _plugin
+    final iosGranted = await _plugin
         .resolvePlatformSpecificImplementation<
             IOSFlutterLocalNotificationsPlugin>()
         ?.requestPermissions(
@@ -79,6 +85,7 @@ class NotificationService {
           badge: true,
           sound: true,
         );
+    debugPrint('NotificationService: iOS permission granted: $iosGranted');
   }
 
   void _onNotificationTapped(NotificationResponse response) {
@@ -134,7 +141,7 @@ class NotificationService {
           UILocalNotificationDateInterpretation.absoluteTime,
     );
 
-    debugPrint('Scheduled notification for $endTime');
+    debugPrint('NotificationService: Scheduled notification for $endTime (tz: $scheduledTime)');
   }
 
   /// Cancel any pending timer notification
