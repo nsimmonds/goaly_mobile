@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/task.dart';
 import '../providers/task_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/notification_service.dart';
 
 enum TimerState {
   idle,
@@ -162,6 +163,7 @@ class TimerProvider with ChangeNotifier {
     _pausedAt = null;
 
     _startTimer();
+    _scheduleNotification();
     notifyListeners();
   }
 
@@ -181,6 +183,7 @@ class TimerProvider with ChangeNotifier {
     _pausedAt = null;
 
     _startTimer();
+    _scheduleNotification();
     notifyListeners();
   }
 
@@ -196,6 +199,7 @@ class TimerProvider with ChangeNotifier {
     _pausedAt = null;
 
     _startTimer();
+    _scheduleNotification();
     notifyListeners();
   }
 
@@ -204,6 +208,7 @@ class TimerProvider with ChangeNotifier {
     if (_sessionType != SessionType.breakSession) return;
 
     _timer?.cancel();
+    _cancelNotification();
 
     // Start next work session
     if (_taskProvider != null && _taskProvider!.hasIncompleteTasks) {
@@ -225,6 +230,7 @@ class TimerProvider with ChangeNotifier {
         _pausedAt = null;
 
         _startTimer();
+        _scheduleNotification();
         notifyListeners();
         return;
       }
@@ -249,6 +255,7 @@ class TimerProvider with ChangeNotifier {
         ? TimerState.workPaused
         : TimerState.breakPaused;
     _timer?.cancel();
+    _cancelNotification();
 
     notifyListeners();
   }
@@ -270,12 +277,14 @@ class TimerProvider with ChangeNotifier {
     _pausedAt = null;
 
     _startTimer();
+    _scheduleNotification();
     notifyListeners();
   }
 
   /// Stop the current session and return to idle
   void stop() {
     _timer?.cancel();
+    _cancelNotification();
     _state = TimerState.idle;
     _sessionType = SessionType.work;
     _currentTask = null;
@@ -293,8 +302,9 @@ class TimerProvider with ChangeNotifier {
     // Calculate time spent (excluding pauses)
     final timeSpent = elapsedSeconds;
 
-    // Stop the timer
+    // Stop the timer and cancel notification
     _timer?.cancel();
+    _cancelNotification();
     _state = TimerState.idle;
 
     // Mark task complete with accumulated time
@@ -403,6 +413,7 @@ class TimerProvider with ChangeNotifier {
   /// Handle session completion
   Future<void> _onSessionComplete() async {
     _timer?.cancel();
+    _cancelNotification(); // Clear any pending notification
 
     // Play sound
     if (_soundEnabled) {
@@ -428,6 +439,7 @@ class TimerProvider with ChangeNotifier {
       _pausedAt = null;
 
       _startTimer();
+      _scheduleNotification();
       notifyListeners();
     } else {
       // Break completed - auto-start next work session
@@ -451,6 +463,7 @@ class TimerProvider with ChangeNotifier {
           _pausedAt = null;
 
           _startTimer();
+          _scheduleNotification();
           notifyListeners();
         } else {
           // No task available - return to idle
@@ -485,6 +498,39 @@ class TimerProvider with ChangeNotifier {
     final minutes = seconds ~/ 60;
     final secs = seconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+  }
+
+  /// Schedule a notification for when the current session ends
+  void _scheduleNotification() {
+    if (_sessionEndTime == null) return;
+
+    final title = _sessionType == SessionType.work
+        ? 'Work Session Complete!'
+        : 'Break Over!';
+    final body = _sessionType == SessionType.work
+        ? _currentTask?.description ?? 'Time for a break'
+        : 'Ready for your next task?';
+
+    NotificationService.instance.scheduleTimerNotification(
+      endTime: _sessionEndTime!,
+      title: title,
+      body: body,
+    );
+  }
+
+  /// Cancel any pending timer notification
+  void _cancelNotification() {
+    NotificationService.instance.cancelTimerNotification();
+  }
+
+  /// Check if session completed while app was backgrounded
+  Future<void> checkForMissedCompletion() async {
+    if (!isRunning || _sessionEndTime == null) return;
+
+    if (DateTime.now().isAfter(_sessionEndTime!)) {
+      // Session should have completed - trigger completion
+      await _onSessionComplete();
+    }
   }
 
   @override

@@ -3,12 +3,16 @@ import 'package:provider/provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/task_provider.dart';
 import 'providers/timer_provider.dart';
+import 'services/notification_service.dart';
 import 'config/theme.dart';
 import 'config/constants.dart';
 import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize notification service
+  await NotificationService.instance.init();
 
   // Initialize settings provider
   final settingsProvider = SettingsProvider();

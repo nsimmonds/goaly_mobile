@@ -3,9 +3,12 @@ name: Deploy
 on:
   push:
     branches: [deploy]
+    tags:
+      - 'build-ios'
 
 jobs:
   deploy-ios:
+    if: github.ref == 'refs/heads/deploy' || github.ref == 'refs/tags/build-ios'
     runs-on: macos-latest
 
     steps:
@@ -77,6 +80,7 @@ jobs:
           rm -rf ~/private_keys || true
 
   deploy-macos:
+    if: github.ref == 'refs/heads/deploy'
     runs-on: macos-latest
 
     steps:
@@ -141,6 +145,7 @@ jobs:
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
 
   deploy-windows:
+    if: github.ref == 'refs/heads/deploy'
     runs-on: windows-latest
 
     steps:

@@ -47,5 +47,7 @@
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>Goaly sends notifications when your timer completes.</string>
 </dict>
 </plist>

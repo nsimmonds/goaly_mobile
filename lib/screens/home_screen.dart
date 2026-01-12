@@ -91,13 +91,14 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String? _currentBreakSuggestion;
   bool _wasInBreak = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Load tasks on startup and link providers
     WidgetsBinding.instance.addPostFrameCallback((_) {
       debugPrint('Loading tasks...');
@@ -113,6 +114,21 @@ class _HomeScreenState extends State<HomeScreen> {
         debugPrint('Error loading tasks: $e');
       });
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Check if timer should have completed while app was backgrounded
+      final timer = context.read<TimerProvider>();
+      timer.checkForMissedCompletion();
+    }
   }
 
   void _updateBreakSuggestion(TimerProvider timer, SettingsProvider settings) {
