@@ -69,14 +69,25 @@ class NotificationService {
   }
 
   Future<void> _requestPermissions() async {
-    // Android 13+ permission request
-    final androidGranted = await _plugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
-    debugPrint('NotificationService: Android permission granted: $androidGranted');
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
 
-    // iOS permission request (handled by DarwinInitializationSettings but can be explicit)
+    if (android != null) {
+      // Android 13+ notification permission
+      final notifGranted = await android.requestNotificationsPermission();
+      debugPrint('NotificationService: Android notification permission: $notifGranted');
+
+      // Check exact alarm permission (Android 12+)
+      final exactAlarmGranted = await android.canScheduleExactNotifications();
+      debugPrint('NotificationService: Android exact alarm permission: $exactAlarmGranted');
+
+      if (exactAlarmGranted != true) {
+        debugPrint('NotificationService: Requesting exact alarm permission...');
+        await android.requestExactAlarmsPermission();
+      }
+    }
+
+    // iOS permission request
     final iosGranted = await _plugin
         .resolvePlatformSpecificImplementation<
             IOSFlutterLocalNotificationsPlugin>()
@@ -105,7 +116,16 @@ class NotificationService {
 
     // Don't schedule if end time is in the past
     if (endTime.isBefore(DateTime.now())) {
+      debugPrint('NotificationService: Not scheduling - end time is in past');
       return;
+    }
+
+    // Check if we can schedule exact notifications on Android
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android != null) {
+      final canSchedule = await android.canScheduleExactNotifications();
+      debugPrint('NotificationService: Can schedule exact: $canSchedule');
     }
 
     final scheduledTime = tz.TZDateTime.from(endTime, tz.local);
