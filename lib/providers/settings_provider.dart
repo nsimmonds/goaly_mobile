@@ -22,10 +22,17 @@ class SettingsProvider with ChangeNotifier {
   List<String> _celebrationSuggestions = List.from(AppConstants.defaultCelebrationSuggestions);
 
   // Getters
-  bool get isDarkMode => _isDarkMode ?? false;
+  bool get useSystemTheme => _isDarkMode == null;
+  bool get isDarkMode => _isDarkMode ?? _getSystemDarkMode();
   ThemeMode get themeMode {
     if (_isDarkMode == null) return ThemeMode.system;
     return _isDarkMode! ? ThemeMode.dark : ThemeMode.light;
+  }
+
+  /// Get current system dark mode setting
+  bool _getSystemDarkMode() {
+    final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    return brightness == Brightness.dark;
   }
   int get workMinutes => _workMinutes;
   int get breakMinutes => _breakMinutes;
@@ -74,10 +81,24 @@ class SettingsProvider with ChangeNotifier {
     }
   }
 
-  /// Toggle dark mode (null/system → dark → light → dark)
+  /// Set whether to use system theme
+  Future<void> setUseSystemTheme(bool value) async {
+    if (value) {
+      // Switch to system theme
+      _isDarkMode = null;
+      await _prefs.remove(AppConstants.keyDarkMode);
+    } else {
+      // Switch to explicit theme, inherit from current system setting
+      _isDarkMode = _getSystemDarkMode();
+      await _prefs.setBool(AppConstants.keyDarkMode, _isDarkMode!);
+    }
+    notifyListeners();
+  }
+
+  /// Toggle dark mode (only works when not using system theme)
   Future<void> toggleDarkMode() async {
-    // If currently system/null or light, switch to dark; if dark, switch to light
-    _isDarkMode = !(_isDarkMode ?? false);
+    if (_isDarkMode == null) return; // Don't toggle if using system theme
+    _isDarkMode = !_isDarkMode!;
     await _prefs.setBool(AppConstants.keyDarkMode, _isDarkMode!);
     notifyListeners();
   }

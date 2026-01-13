@@ -118,17 +118,31 @@ class SettingsScreen extends StatelessWidget {
 
   Widget _buildDarkModeCard(BuildContext context, SettingsProvider settings) {
     return Card(
-      child: SwitchListTile(
-        title: const Text('Dark Mode'),
-        subtitle: const Text('Use dark theme'),
-        secondary: Text(
-          settings.isDarkMode
-              ? AppConstants.emojiDarkMode
-              : AppConstants.emojiLightMode,
-          style: const TextStyle(fontSize: 24),
-        ),
-        value: settings.isDarkMode,
-        onChanged: (value) => settings.toggleDarkMode(),
+      child: Column(
+        children: [
+          CheckboxListTile(
+            title: const Text('Use System Theme'),
+            subtitle: const Text('Follow device light/dark setting'),
+            value: settings.useSystemTheme,
+            onChanged: (value) => settings.setUseSystemTheme(value ?? true),
+          ),
+          SwitchListTile(
+            title: const Text('Dark Mode'),
+            subtitle: Text(settings.useSystemTheme
+                ? 'Disabled while using system theme'
+                : 'Use dark theme'),
+            secondary: Text(
+              settings.isDarkMode
+                  ? AppConstants.emojiDarkMode
+                  : AppConstants.emojiLightMode,
+              style: const TextStyle(fontSize: 24),
+            ),
+            value: settings.isDarkMode,
+            onChanged: settings.useSystemTheme
+                ? null
+                : (value) => settings.toggleDarkMode(),
+          ),
+        ],
       ),
     );
   }
