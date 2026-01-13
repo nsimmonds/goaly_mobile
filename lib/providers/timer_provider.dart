@@ -413,7 +413,8 @@ class TimerProvider with ChangeNotifier {
   /// Handle session completion
   Future<void> _onSessionComplete() async {
     _timer?.cancel();
-    _cancelNotification(); // Clear any pending notification
+    // Note: Don't cancel notification here - let it fire to alert the user
+    // It will be replaced by the next session's notification anyway
 
     // Play sound
     if (_soundEnabled) {

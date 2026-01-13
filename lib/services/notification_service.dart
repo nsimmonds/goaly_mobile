@@ -111,8 +111,8 @@ class NotificationService {
     required String title,
     required String body,
   }) async {
-    // Cancel any existing timer notification first
-    await cancelTimerNotification();
+    // Note: Don't cancel existing notification - scheduling with same ID replaces it,
+    // and cancelling here causes a race condition where the notification never fires
 
     // Don't schedule if end time is in the past
     if (endTime.isBefore(DateTime.now())) {
@@ -156,7 +156,7 @@ class NotificationService {
       body,
       scheduledTime,
       details,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.alarmClock,
     );
 
     debugPrint('NotificationService: Scheduled notification for $endTime (tz: $scheduledTime)');
