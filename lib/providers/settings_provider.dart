@@ -10,7 +10,8 @@ class SettingsProvider with ChangeNotifier {
   final Random _random = Random();
 
   // Settings
-  bool _isDarkMode = false;
+  // null = use system theme (default), true = dark, false = light
+  bool? _isDarkMode;
   int _workMinutes = AppConstants.defaultWorkMinutes;
   int _breakMinutes = AppConstants.defaultBreakMinutes;
   bool _soundEnabled = true;
@@ -21,7 +22,11 @@ class SettingsProvider with ChangeNotifier {
   List<String> _celebrationSuggestions = List.from(AppConstants.defaultCelebrationSuggestions);
 
   // Getters
-  bool get isDarkMode => _isDarkMode;
+  bool get isDarkMode => _isDarkMode ?? false;
+  ThemeMode get themeMode {
+    if (_isDarkMode == null) return ThemeMode.system;
+    return _isDarkMode! ? ThemeMode.dark : ThemeMode.light;
+  }
   int get workMinutes => _workMinutes;
   int get breakMinutes => _breakMinutes;
   bool get soundEnabled => _soundEnabled;
@@ -42,7 +47,7 @@ class SettingsProvider with ChangeNotifier {
 
   /// Load settings from SharedPreferences
   Future<void> _loadSettings() async {
-    _isDarkMode = _prefs.getBool(AppConstants.keyDarkMode) ?? false;
+    _isDarkMode = _prefs.getBool(AppConstants.keyDarkMode); // null = system theme
     _workMinutes = _prefs.getInt(AppConstants.keyWorkMinutes) ?? AppConstants.defaultWorkMinutes;
     _breakMinutes = _prefs.getInt(AppConstants.keyBreakMinutes) ?? AppConstants.defaultBreakMinutes;
     _soundEnabled = _prefs.getBool(AppConstants.keySoundEnabled) ?? true;
@@ -69,10 +74,11 @@ class SettingsProvider with ChangeNotifier {
     }
   }
 
-  /// Toggle dark mode
+  /// Toggle dark mode (null/system → dark → light → dark)
   Future<void> toggleDarkMode() async {
-    _isDarkMode = !_isDarkMode;
-    await _prefs.setBool(AppConstants.keyDarkMode, _isDarkMode);
+    // If currently system/null or light, switch to dark; if dark, switch to light
+    _isDarkMode = !(_isDarkMode ?? false);
+    await _prefs.setBool(AppConstants.keyDarkMode, _isDarkMode!);
     notifyListeners();
   }
 
@@ -173,7 +179,7 @@ class SettingsProvider with ChangeNotifier {
 
   /// Reset all settings to defaults
   Future<void> resetToDefaults() async {
-    _isDarkMode = false;
+    _isDarkMode = null; // System theme
     _workMinutes = AppConstants.defaultWorkMinutes;
     _breakMinutes = AppConstants.defaultBreakMinutes;
     _soundEnabled = true;
@@ -182,7 +188,7 @@ class SettingsProvider with ChangeNotifier {
     _breakSuggestions = List.from(AppConstants.defaultBreakSuggestions);
     _celebrationSuggestions = List.from(AppConstants.defaultCelebrationSuggestions);
 
-    await _prefs.setBool(AppConstants.keyDarkMode, _isDarkMode);
+    await _prefs.remove(AppConstants.keyDarkMode); // Remove to restore system default
     await _prefs.setInt(AppConstants.keyWorkMinutes, _workMinutes);
     await _prefs.setInt(AppConstants.keyBreakMinutes, _breakMinutes);
     await _prefs.setBool(AppConstants.keySoundEnabled, _soundEnabled);
