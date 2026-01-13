@@ -18,6 +18,7 @@ We recognize that sometimes you get into a "flow state" and need to keep working
 - **Auto-Cycling**: Work → Break → Work transitions automatically
 - **Random Task Selection**: Each work session picks a new random task
 - **Flow Mode**: Keep working on the same task across multiple sessions
+- **Background Notifications**: Get alerted when your timer completes, even if the app is backgrounded
 - **Dark Mode**: Full dark/light theme support
 - **Break Suggestions**: Fun activity ideas shown during breaks (customizable)
 - **Celebration Suggestions**: Reward ideas when completing tasks (customizable)
@@ -109,7 +110,8 @@ lib/
 ├── services/
 │   ├── database_service.dart
 │   ├── dependency_validator.dart
-│   └── backup_service.dart   # JSON export/import
+│   ├── backup_service.dart       # JSON export/import
+│   └── notification_service.dart # Background alerts
 └── screens/
     ├── home_screen.dart
     ├── task_list_screen.dart
@@ -134,6 +136,8 @@ lib/
 - `path_provider` / `path` - File paths
 - `file_selector` - File selection for backup import/export
 - `intl` - Date formatting
+- `flutter_local_notifications` - Background timer alerts
+- `timezone` / `flutter_timezone` - Timezone-aware scheduling
 
 ## Building for Release
 
