@@ -173,6 +173,7 @@ Requires Xcode signing configured with Apple Developer account.
 - [ ] Custom notification sounds
 - [ ] Session history log
 - [ ] Additional themes (beyond light/dark)
+- [ ] Unit tests for notification_service.dart
 
 ## Editorial note
 
