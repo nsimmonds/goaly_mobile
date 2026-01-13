@@ -124,6 +124,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    debugPrint('HomeScreen: App lifecycle state changed to $state');
     if (state == AppLifecycleState.resumed) {
       // Check if timer should have completed while app was backgrounded
       final timer = context.read<TimerProvider>();
