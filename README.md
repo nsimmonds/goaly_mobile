@@ -164,13 +164,15 @@ Requires Xcode signing configured with Apple Developer account.
 
 ## TODO
 
-- [x] Replace `print()` with `debugPrint()` in home_screen.dart
-- [x] Add try-catch for JSON parsing in settings_provider.dart
-- [x] Add input length validation for task descriptions (500 char limit)
-- [x] Enable code obfuscation for release builds (documented above)
+- [x] Background notifications when timer completes
+- [x] Reopen completed tasks (bidirectional checkbox)
+- [x] Screen pinning prompts for focus mode
+- [x] JSON backup and restore
+- [x] Flow mode (same task across sessions)
 - [ ] macOS code notarization for Gatekeeper
+- [ ] Custom notification sounds
+- [ ] Session history log
 - [ ] Additional themes (beyond light/dark)
-- [ ] More timer duration presets and customization options
 
 ## Editorial note
 
