@@ -143,6 +143,7 @@ class NotificationService {
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
+      sound: 'notification.wav',
     );
 
     const details = NotificationDetails(
