@@ -84,4 +84,8 @@ class AppConstants {
     'You earned a longer break!',
     'Pat yourself on the back!',
   ];
+
+  // Testing Mode
+  static const bool testingModeEnabled = true;
+  static const String feedbackFormUrl = 'https://forms.gle/Ym4xaX4iGm7YQbZV8';
 }

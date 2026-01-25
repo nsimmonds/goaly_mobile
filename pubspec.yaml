@@ -46,6 +46,9 @@ dependencies:
   # Settings/Preferences
   shared_preferences: ^2.2.0
 
+  # URL launching
+  url_launcher: ^6.2.0
+
   # Audio for timer alerts
   audioplayers: ^6.5.1
 

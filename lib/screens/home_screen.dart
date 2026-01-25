@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/task.dart';
 import '../providers/timer_provider.dart';
 import '../providers/task_provider.dart';
@@ -132,6 +133,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _openFeedbackForm() async {
+    final uri = Uri.parse(AppConstants.feedbackFormUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   void _updateBreakSuggestion(TimerProvider timer, SettingsProvider settings) {
     final isInBreak = timer.sessionType == SessionType.breakSession &&
         (timer.isRunning || timer.isPaused);
@@ -226,6 +234,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ],
         ),
         actions: [
+          if (AppConstants.testingModeEnabled)
+            IconButton(
+              icon: const Icon(Icons.feedback_outlined),
+              tooltip: 'Send Feedback',
+              onPressed: _openFeedbackForm,
+            ),
           IconButton(
             icon: const Icon(Icons.bar_chart),
             tooltip: 'Statistics',
