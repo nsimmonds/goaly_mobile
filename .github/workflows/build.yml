@@ -5,10 +5,11 @@ on:
     branches: [build]
     tags:
       - 'build-android'
+      - 'build-ios'
 
 jobs:
   build-android:
-    if: github.ref == 'refs/heads/build' || github.ref == 'refs/tags/build-android'
+    if: (github.ref == 'refs/heads/build' || github.ref == 'refs/tags/build-android') && !contains(github.event.head_commit.message, '[no-cicd]')
     runs-on: ubuntu-latest
 
     steps:
@@ -57,14 +58,14 @@ jobs:
 
       - name: Build Android AAB
         run: |
-          BUILD_NUMBER=$(( ${{ github.run_number }} + 100 ))
+          BUILD_NUMBER=$(( ${{ github.run_number }} + 200 ))
           echo "Building AAB with version code: $BUILD_NUMBER"
           flutter build appbundle --release --verbose \
             --build-number=$BUILD_NUMBER
 
       - name: Build Android APK
         run: |
-          BUILD_NUMBER=$(( ${{ github.run_number }} + 100 ))
+          BUILD_NUMBER=$(( ${{ github.run_number }} + 200 ))
           echo "Building APK with version code: $BUILD_NUMBER"
           flutter build apk --release --verbose \
             --build-number=$BUILD_NUMBER
@@ -82,7 +83,7 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
 
   build-ios:
-    if: github.ref == 'refs/heads/build'
+    if: (github.ref == 'refs/heads/build' || github.ref == 'refs/tags/build-ios') && !contains(github.event.head_commit.message, '[no-cicd]')
     runs-on: macos-latest
 
     steps:
@@ -132,7 +133,7 @@ jobs:
 
       - name: Build iOS
         run: |
-          BUILD_NUMBER=$(( ${{ github.run_number }} + 100 ))
+          BUILD_NUMBER=$(( ${{ github.run_number }} + 200 ))
           echo "Building IPA with version code: $BUILD_NUMBER"
           flutter build ipa --release --verbose \
             --build-number=$BUILD_NUMBER \

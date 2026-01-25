@@ -4,11 +4,12 @@ on:
   push:
     branches: [deploy]
     tags:
-      - 'build-ios'
+      - 'deploy-android'
+      - 'deploy-ios'
 
 jobs:
   deploy-android:
-    if: github.ref == 'refs/heads/deploy'
+    if: (github.ref == 'refs/heads/deploy' || github.ref == 'refs/tags/deploy-android') && !contains(github.event.head_commit.message, '[no-cicd]')
     runs-on: ubuntu-latest
 
     steps:
@@ -57,7 +58,7 @@ jobs:
 
       - name: Build Android AAB
         run: |
-          BUILD_NUMBER=$(( ${{ github.run_number }} + 100 ))
+          BUILD_NUMBER=$(( ${{ github.run_number }} + 200 ))
           echo "Building AAB with version code: $BUILD_NUMBER"
           flutter build appbundle --release --verbose \
             --build-number=$BUILD_NUMBER
@@ -79,7 +80,7 @@ jobs:
           status: completed
 
   deploy-ios:
-    if: github.ref == 'refs/heads/deploy' || github.ref == 'refs/tags/build-ios'
+    if: (github.ref == 'refs/heads/deploy' || github.ref == 'refs/tags/deploy-ios') && !contains(github.event.head_commit.message, '[no-cicd]')
     runs-on: macos-latest
 
     steps:
@@ -132,7 +133,7 @@ jobs:
 
       - name: Build iOS
         run: |
-          BUILD_NUMBER=$(( ${{ github.run_number }} + 100 ))
+          BUILD_NUMBER=$(( ${{ github.run_number }} + 200 ))
           echo "Building IPA with version code: $BUILD_NUMBER"
           flutter build ipa --release --verbose \
             --build-number=$BUILD_NUMBER \
@@ -163,7 +164,7 @@ jobs:
           rm -rf ~/private_keys || true
 
   deploy-macos:
-    if: github.ref == 'refs/heads/deploy'
+    if: github.ref == 'refs/heads/deploy' && !contains(github.event.head_commit.message, '[no-cicd]')
     runs-on: macos-latest
 
     steps:
@@ -236,7 +237,7 @@ jobs:
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
 
   deploy-windows:
-    if: github.ref == 'refs/heads/deploy'
+    if: github.ref == 'refs/heads/deploy' && !contains(github.event.head_commit.message, '[no-cicd]')
     runs-on: windows-latest
 
     steps:
