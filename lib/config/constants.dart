@@ -61,6 +61,7 @@ class AppConstants {
   static const String keyCelebrationSuggestions = 'celebration_suggestions';
   static const String keyAdvancedTaskOptions = 'advanced_task_options';
   static const String keyFocusLockEnabled = 'focus_lock_enabled';
+  static const String keyFeedbackClicked = 'feedback_clicked';
 
   // Default Suggestions
   static const List<String> defaultBreakSuggestions = [

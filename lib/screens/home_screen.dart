@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/task.dart';
 import '../providers/timer_provider.dart';
@@ -95,11 +96,13 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String? _currentBreakSuggestion;
   bool _wasInBreak = false;
+  bool _feedbackClicked = true; // Default to true (no highlight) until loaded
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadFeedbackClickedState();
     // Load tasks on startup and link providers
     WidgetsBinding.instance.addPostFrameCallback((_) {
       debugPrint('Loading tasks...');
@@ -114,6 +117,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }).catchError((e) {
         debugPrint('Error loading tasks: $e');
       });
+    });
+  }
+
+  Future<void> _loadFeedbackClickedState() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _feedbackClicked = prefs.getBool(AppConstants.keyFeedbackClicked) ?? false;
     });
   }
 
@@ -134,6 +144,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _openFeedbackForm() async {
+    // Mark as clicked and persist
+    if (!_feedbackClicked) {
+      setState(() => _feedbackClicked = true);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(AppConstants.keyFeedbackClicked, true);
+    }
+
     final uri = Uri.parse(AppConstants.feedbackFormUrl);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -235,10 +252,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         actions: [
           if (AppConstants.testingModeEnabled)
-            IconButton(
-              icon: const Icon(Icons.feedback_outlined),
-              tooltip: 'Send Feedback',
-              onPressed: _openFeedbackForm,
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: _feedbackClicked
+                  ? null
+                  : BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.amber.withValues(alpha: 0.6),
+                          blurRadius: 12,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+              child: IconButton(
+                icon: const Icon(Icons.feedback_outlined),
+                tooltip: 'Send Feedback',
+                onPressed: _openFeedbackForm,
+              ),
             ),
           IconButton(
             icon: const Icon(Icons.bar_chart),
