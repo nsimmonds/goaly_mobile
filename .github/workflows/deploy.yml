@@ -28,15 +28,17 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --verbose
 
       - name: Run tests
-        run: flutter test
+        run: flutter test --verbose
 
       - name: Decode keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+          echo "Keystore decoded: $(ls -la android/app/upload-keystore.jks)"
 
       - name: Create key.properties
         env:
@@ -48,16 +50,26 @@ jobs:
           echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
           echo "keyAlias=$KEY_ALIAS" >> android/key.properties
           echo "storeFile=upload-keystore.jks" >> android/key.properties
+          echo "key.properties created with alias: $KEY_ALIAS"
 
       - name: Build Android AAB
         run: |
-          flutter build appbundle --release \
-            --build-number=$(( ${{ github.run_number }} + 100 ))
+          BUILD_NUMBER=$(( ${{ github.run_number }} + 100 ))
+          echo "Building AAB with version code: $BUILD_NUMBER"
+          flutter build appbundle --release --verbose \
+            --build-number=$BUILD_NUMBER
+
+      - name: Decode Play Store service account
+        env:
+          PLAY_STORE_SERVICE_ACCOUNT_BASE64: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          echo "$PLAY_STORE_SERVICE_ACCOUNT_BASE64" | base64 --decode > /tmp/play-store-service-account.json
+          echo "Service account decoded: $(ls -la /tmp/play-store-service-account.json)"
 
       - name: Upload to Google Play (Internal Testing)
         uses: r0adkll/upload-google-play@v1
         with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}
+          serviceAccountJson: /tmp/play-store-service-account.json
           packageName: com.goaly.goaly_mobile
           releaseFiles: build/app/outputs/bundle/release/app-release.aab
           track: internal
@@ -78,10 +90,10 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --verbose
 
       - name: Run tests
-        run: flutter test
+        run: flutter test --verbose
 
       - name: Install Apple certificate and provisioning profile
         env:
@@ -90,28 +102,37 @@ jobs:
           PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
           KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
         run: |
+          set -x
           CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
           PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
 
+          echo "Decoding certificate and provisioning profile..."
           echo -n "$P12_BASE64" | base64 --decode -o $CERTIFICATE_PATH
           echo -n "$PROVISIONING_PROFILE_BASE64" | base64 --decode -o $PP_PATH
+          ls -la $CERTIFICATE_PATH $PP_PATH
 
+          echo "Creating keychain..."
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
 
+          echo "Importing certificate..."
           security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
 
+          echo "Installing provisioning profile..."
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
+          echo "Certificate and profile installed successfully"
 
       - name: Build iOS
         run: |
-          flutter build ipa --release \
-            --build-number=$(( ${{ github.run_number }} + 100 )) \
+          BUILD_NUMBER=$(( ${{ github.run_number }} + 100 ))
+          echo "Building IPA with version code: $BUILD_NUMBER"
+          flutter build ipa --release --verbose \
+            --build-number=$BUILD_NUMBER \
             --export-options-plist=ios/ExportOptions.plist
 
       - name: Setup App Store Connect API Key
@@ -120,14 +141,17 @@ jobs:
         run: |
           mkdir -p ~/private_keys
           echo -n "$API_KEY_BASE64" | base64 --decode > ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
+          echo "API key installed: $(ls -la ~/private_keys/)"
 
       - name: Upload to TestFlight
         run: |
+          echo "Uploading IPA: $(ls -la build/ios/ipa/*.ipa)"
           xcrun altool --upload-app \
             --type ios \
             --file build/ios/ipa/*.ipa \
             --apiKey ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }} \
-            --apiIssuer ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+            --apiIssuer ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
+            --verbose
 
       - name: Clean up keychain
         if: ${{ always() }}
@@ -150,7 +174,7 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --verbose
 
       - name: Install Developer ID certificate
         env:
@@ -158,21 +182,27 @@ jobs:
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
         run: |
+          set -x
           CERTIFICATE_PATH=$RUNNER_TEMP/developer_id.p12
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
 
+          echo "Decoding Developer ID certificate..."
           echo -n "$MACOS_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+          ls -la $CERTIFICATE_PATH
 
+          echo "Creating keychain..."
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
 
+          echo "Importing certificate..."
           security import $CERTIFICATE_PATH -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
+          echo "Developer ID certificate installed successfully"
 
       - name: Build macOS
-        run: flutter build macos --release
+        run: flutter build macos --release --verbose
 
       - name: Sign app
         env:
@@ -186,8 +216,10 @@ jobs:
         run: |
           mkdir -p build/dmg
           cp -R build/macos/Build/Products/Release/goaly_mobile.app build/dmg/
-          hdiutil create -volname "Goaly" -srcfolder build/dmg -ov -format UDZO build/Goaly.dmg
+          echo "App size: $(du -sh build/dmg/goaly_mobile.app)"
+          hdiutil create -volname "Goaly" -srcfolder build/dmg -ov -format UDZO -verbose build/Goaly.dmg
           rm -rf build/dmg
+          echo "DMG created: $(ls -la build/Goaly.dmg)"
 
       - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
@@ -215,10 +247,10 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --verbose
 
       - name: Build Windows
-        run: flutter build windows --release
+        run: flutter build windows --release --verbose
 
       - name: Create ZIP
         run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath build/Goaly-Windows.zip

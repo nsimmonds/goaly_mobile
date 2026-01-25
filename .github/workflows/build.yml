@@ -28,15 +28,17 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --verbose
 
       - name: Run tests
-        run: flutter test
+        run: flutter test --verbose
 
       - name: Decode keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+          echo "Keystore decoded: $(ls -la android/app/upload-keystore.jks)"
 
       - name: Create key.properties
         env:
@@ -48,16 +50,21 @@ jobs:
           echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
           echo "keyAlias=$KEY_ALIAS" >> android/key.properties
           echo "storeFile=upload-keystore.jks" >> android/key.properties
+          echo "key.properties created with alias: $KEY_ALIAS"
 
       - name: Build Android AAB
         run: |
-          flutter build appbundle --release \
-            --build-number=$(( ${{ github.run_number }} + 100 ))
+          BUILD_NUMBER=$(( ${{ github.run_number }} + 100 ))
+          echo "Building AAB with version code: $BUILD_NUMBER"
+          flutter build appbundle --release --verbose \
+            --build-number=$BUILD_NUMBER
 
       - name: Build Android APK
         run: |
-          flutter build apk --release \
-            --build-number=$(( ${{ github.run_number }} + 100 ))
+          BUILD_NUMBER=$(( ${{ github.run_number }} + 100 ))
+          echo "Building APK with version code: $BUILD_NUMBER"
+          flutter build apk --release --verbose \
+            --build-number=$BUILD_NUMBER
 
       - name: Upload Android AAB
         uses: actions/upload-artifact@v4
@@ -86,7 +93,7 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --verbose
 
       - name: Install Apple certificate and provisioning profile
         env:
@@ -95,31 +102,38 @@ jobs:
           PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
           KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
         run: |
-          # Create variables
+          set -x
           CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
           PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
 
-          # Decode files
+          echo "Decoding certificate and provisioning profile..."
           echo -n "$P12_BASE64" | base64 --decode -o $CERTIFICATE_PATH
           echo -n "$PROVISIONING_PROFILE_BASE64" | base64 --decode -o $PP_PATH
+          ls -la $CERTIFICATE_PATH $PP_PATH
 
-          # Create temporary keychain
+          echo "Creating keychain..."
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
 
-          # Import certificate to keychain
+          echo "Importing certificate..."
           security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
 
-          # Install provisioning profile
+          echo "Installing provisioning profile..."
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
+          echo "Certificate and profile installed successfully"
 
       - name: Build iOS
-        run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+        run: |
+          BUILD_NUMBER=$(( ${{ github.run_number }} + 100 ))
+          echo "Building IPA with version code: $BUILD_NUMBER"
+          flutter build ipa --release --verbose \
+            --build-number=$BUILD_NUMBER \
+            --export-options-plist=ios/ExportOptions.plist
 
       - name: Upload iOS IPA
         uses: actions/upload-artifact@v4
