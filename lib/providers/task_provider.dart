@@ -1,5 +1,5 @@
 import 'dart:math';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../config/constants.dart';
 import '../models/task.dart';
 import '../models/tag.dart';
@@ -239,7 +239,9 @@ class TaskProvider with ChangeNotifier {
       _tasks[taskIndex] = updatedTask;
       notifyListeners();
     } catch (e) {
-      debugPrint('Failed to accumulate task time: $e');
+      if (kDebugMode) {
+        debugPrint('Failed to accumulate task time: $e');
+      }
     }
   }
 

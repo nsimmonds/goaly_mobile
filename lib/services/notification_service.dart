@@ -25,7 +25,9 @@ class NotificationService {
     final tzInfo = await FlutterTimezone.getLocalTimezone();
     final tzName = tzInfo.identifier;
     tz.setLocalLocation(tz.getLocation(tzName));
-    debugPrint('NotificationService: Timezone set to $tzName');
+    if (kDebugMode) {
+      debugPrint('NotificationService: Timezone set to $tzName');
+    }
 
     // Android settings
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -83,14 +85,20 @@ class NotificationService {
     if (android != null) {
       // Android 13+ notification permission
       final notifGranted = await android.requestNotificationsPermission();
-      debugPrint('NotificationService: Android notification permission: $notifGranted');
+      if (kDebugMode) {
+        debugPrint('NotificationService: Android notification permission: $notifGranted');
+      }
 
       // Check exact alarm permission (Android 12+)
       final exactAlarmGranted = await android.canScheduleExactNotifications();
-      debugPrint('NotificationService: Android exact alarm permission: $exactAlarmGranted');
+      if (kDebugMode) {
+        debugPrint('NotificationService: Android exact alarm permission: $exactAlarmGranted');
+      }
 
       if (exactAlarmGranted != true) {
-        debugPrint('NotificationService: Requesting exact alarm permission...');
+        if (kDebugMode) {
+          debugPrint('NotificationService: Requesting exact alarm permission...');
+        }
         await android.requestExactAlarmsPermission();
       }
     }
@@ -104,13 +112,17 @@ class NotificationService {
           badge: true,
           sound: true,
         );
-    debugPrint('NotificationService: iOS permission granted: $iosGranted');
+    if (kDebugMode) {
+      debugPrint('NotificationService: iOS permission granted: $iosGranted');
+    }
   }
 
   void _onNotificationTapped(NotificationResponse response) {
     // App will be brought to foreground automatically
     // Additional handling can be added here if needed
-    debugPrint('Notification tapped: ${response.payload}');
+    if (kDebugMode) {
+      debugPrint('Notification tapped: ${response.payload}');
+    }
   }
 
   /// Schedule a notification for when the timer ends
@@ -124,7 +136,9 @@ class NotificationService {
 
     // Don't schedule if end time is in the past
     if (endTime.isBefore(DateTime.now())) {
-      debugPrint('NotificationService: Not scheduling - end time is in past');
+      if (kDebugMode) {
+        debugPrint('NotificationService: Not scheduling - end time is in past');
+      }
       return;
     }
 
@@ -133,7 +147,9 @@ class NotificationService {
         AndroidFlutterLocalNotificationsPlugin>();
     if (android != null) {
       final canSchedule = await android.canScheduleExactNotifications();
-      debugPrint('NotificationService: Can schedule exact: $canSchedule');
+      if (kDebugMode) {
+        debugPrint('NotificationService: Can schedule exact: $canSchedule');
+      }
     }
 
     final scheduledTime = tz.TZDateTime.from(endTime, tz.local);
@@ -168,12 +184,16 @@ class NotificationService {
       androidScheduleMode: AndroidScheduleMode.alarmClock,
     );
 
-    debugPrint('NotificationService: Scheduled notification for $endTime (tz: $scheduledTime)');
+    if (kDebugMode) {
+      debugPrint('NotificationService: Scheduled notification for $endTime (tz: $scheduledTime)');
+    }
   }
 
   /// Cancel any pending timer notification
   Future<void> cancelTimerNotification() async {
     await _plugin.cancel(_timerNotificationId);
-    debugPrint('Cancelled timer notification');
+    if (kDebugMode) {
+      debugPrint('Cancelled timer notification');
+    }
   }
 }

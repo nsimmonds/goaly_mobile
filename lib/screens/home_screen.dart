@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -105,7 +106,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadFeedbackClickedState();
     // Load tasks on startup and link providers
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      debugPrint('Loading tasks...');
+      if (kDebugMode) {
+        debugPrint('Loading tasks...');
+      }
       final taskProvider = context.read<TaskProvider>();
       final timerProvider = context.read<TimerProvider>();
 
@@ -113,9 +116,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       timerProvider.setTaskProvider(taskProvider);
 
       taskProvider.loadTasks().then((_) {
-        debugPrint('Tasks loaded: ${taskProvider.tasks.length}');
+        if (kDebugMode) {
+          debugPrint('Tasks loaded: ${taskProvider.tasks.length}');
+        }
       }).catchError((e) {
-        debugPrint('Error loading tasks: $e');
+        if (kDebugMode) {
+          debugPrint('Error loading tasks: $e');
+        }
       });
     });
   }
@@ -135,7 +142,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    debugPrint('HomeScreen: App lifecycle state changed to $state');
+    if (kDebugMode) {
+      debugPrint('HomeScreen: App lifecycle state changed to $state');
+    }
     if (state == AppLifecycleState.resumed) {
       // Check if timer should have completed while app was backgrounded
       final timer = context.read<TimerProvider>();
@@ -653,7 +662,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _buildNavigateToTasksButton(BuildContext context, TaskProvider tasks) {
     return TextButton.icon(
       onPressed: () {
-        debugPrint('Navigate to tasks button pressed');
+        if (kDebugMode) {
+          debugPrint('Navigate to tasks button pressed');
+        }
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const TaskListScreen()),

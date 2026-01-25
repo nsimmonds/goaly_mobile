@@ -41,7 +41,11 @@ To be clear, AI *is* used as a coding assistant in work on Goaly. We are not Lud
 
 ## Status
 
-Goaly is in alpha mode and not available to the public. Send an email to n . ick @ ni . ck . s . imm . ond . s Dot Com to request access. Local builds are available if you want to build it yourself.
+Goaly is in beta with public signups:
+- Android: https://play.google.com/store/apps/details?id=com.goaly.goaly_mobile
+- iOS: https://testflight.apple.com/join/EU2wEpkP
+
+Local builds are available if you want to build it yourself.
 
 ## Getting Started with a local build
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:provider/provider.dart';
@@ -489,7 +490,9 @@ class TimerProvider with ChangeNotifier {
       // and save it as assets/sounds/notification.wav
       await _audioPlayer.play(AssetSource('sounds/notification.wav'));
     } catch (e) {
-      debugPrint('Error playing sound: $e');
+      if (kDebugMode) {
+        debugPrint('Error playing sound: $e');
+      }
       // Fail silently - sound is optional
     }
   }
