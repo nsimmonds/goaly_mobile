@@ -54,15 +54,14 @@ jobs:
           flutter build appbundle --release \
             --build-number=$(( ${{ github.run_number }} + 100 ))
 
-      # TODO: Uncomment when Play Store service account is configured
-      # - name: Upload to Google Play (Internal Testing)
-      #   uses: r0adkll/upload-google-play@v1
-      #   with:
-      #     serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}
-      #     packageName: com.goaly.goaly_mobile
-      #     releaseFiles: build/app/outputs/bundle/release/app-release.aab
-      #     track: internal
-      #     status: completed
+      - name: Upload to Google Play (Internal Testing)
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}
+          packageName: com.goaly.goaly_mobile
+          releaseFiles: build/app/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
 
   deploy-ios:
     if: github.ref == 'refs/heads/deploy' || github.ref == 'refs/tags/build-ios'
