@@ -78,7 +78,9 @@ class NotificationService {
         ?.createNotificationChannel(channel);
   }
 
-  Future<void> _requestPermissions() async {
+  Future<bool> _requestPermissions() async {
+    bool granted = false;
+
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
 
@@ -101,20 +103,73 @@ class NotificationService {
         }
         await android.requestExactAlarmsPermission();
       }
+
+      // Android permission granted if both notification and exact alarm are granted
+      granted = (notifGranted ?? false) && (exactAlarmGranted ?? false);
     }
 
     // iOS permission request
-    final iosGranted = await _plugin
-        .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>()
-        ?.requestPermissions(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
-    if (kDebugMode) {
-      debugPrint('NotificationService: iOS permission granted: $iosGranted');
+    final ios = _plugin.resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>();
+    if (ios != null) {
+      final iosGranted = await ios.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      if (kDebugMode) {
+        debugPrint('NotificationService: iOS permission granted: $iosGranted');
+      }
+      granted = iosGranted ?? false;
     }
+
+    // macOS permission request
+    final macOS = _plugin.resolvePlatformSpecificImplementation<
+            MacOSFlutterLocalNotificationsPlugin>();
+    if (macOS != null) {
+      final macOSGranted = await macOS.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      if (kDebugMode) {
+        debugPrint('NotificationService: macOS permission granted: $macOSGranted');
+      }
+      granted = macOSGranted ?? false;
+    }
+
+    return granted;
+  }
+
+  /// Check if notification permissions are currently granted
+  Future<bool> checkPermissionStatus() async {
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+
+    if (android != null) {
+      final notifGranted = await android.areNotificationsEnabled();
+      final exactAlarmGranted = await android.canScheduleExactNotifications();
+      return (notifGranted ?? false) && (exactAlarmGranted ?? false);
+    }
+
+    // iOS check
+    final ios = _plugin.resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>();
+    if (ios != null) {
+      final settings = await ios.checkPermissions();
+      return settings?.isEnabled ?? false;
+    }
+
+    // macOS check
+    final macOS = _plugin.resolvePlatformSpecificImplementation<
+            MacOSFlutterLocalNotificationsPlugin>();
+    if (macOS != null) {
+      final settings = await macOS.checkPermissions();
+      return settings?.isEnabled ?? false;
+    }
+
+    // Default to true for platforms without specific checks (e.g., Windows, Linux)
+    return true;
   }
 
   void _onNotificationTapped(NotificationResponse response) {

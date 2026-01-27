@@ -1,11 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:file_selector/file_selector.dart';
 import '../providers/settings_provider.dart';
 import '../providers/task_provider.dart';
 import '../services/backup_service.dart';
+import '../services/database_service.dart';
 import '../config/constants.dart';
 import 'instructions_screen.dart';
 import 'about_screen.dart';
@@ -92,6 +94,8 @@ class SettingsScreen extends StatelessWidget {
               _buildAboutCard(context),
               const SizedBox(height: 8),
               _buildResetCard(context, settings),
+              const SizedBox(height: 8),
+              _buildDatabaseResetCard(context),
               const SizedBox(height: 24),
 
               // App Info
@@ -537,6 +541,129 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildDatabaseResetCard(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: Icon(Icons.delete_forever, color: Colors.red.shade700),
+        title: const Text('Reset Database'),
+        subtitle: const Text('Delete all tasks and start fresh'),
+        onTap: () => _confirmDatabaseReset(context),
+      ),
+    );
+  }
+
+  Future<void> _confirmDatabaseReset(BuildContext context) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    // First confirmation
+    final firstConfirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber, color: Colors.red.shade700),
+            const SizedBox(width: 8),
+            const Text('Reset Database?'),
+          ],
+        ),
+        content: const Text(
+          'This will permanently delete ALL your tasks, tags, and progress. '
+          'This action cannot be undone.\n\n'
+          'Consider exporting a backup first.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+
+    if (firstConfirm != true || !context.mounted) return;
+
+    // Second confirmation with typed confirmation
+    final controller = TextEditingController();
+    final secondConfirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Final Confirmation'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Type "DELETE" to confirm:'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'DELETE',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text == 'DELETE') {
+                Navigator.pop(context, true);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Reset Database'),
+          ),
+        ],
+      ),
+    );
+
+    if (secondConfirm != true || !context.mounted) return;
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      await DatabaseService.instance.resetDatabase();
+
+      // Reload tasks in provider
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading indicator
+        await context.read<TaskProvider>().loadTasks();
+
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('Database reset complete')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading indicator
+        scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text('Reset failed: $e')),
+        );
+      }
+    }
+  }
+
   Widget _buildAppInfo(BuildContext context) {
     return Card(
       child: Padding(
@@ -556,9 +683,17 @@ class SettingsScreen extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Version 1.0.0',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
+            FutureBuilder<PackageInfo>(
+              future: PackageInfo.fromPlatform(),
+              builder: (context, snapshot) {
+                final version = snapshot.hasData
+                    ? 'Version ${snapshot.data!.version}'
+                    : '';
+                return Text(
+                  version,
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                );
+              },
             ),
           ],
         ),

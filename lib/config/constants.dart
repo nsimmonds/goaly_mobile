@@ -62,6 +62,7 @@ class AppConstants {
   static const String keyAdvancedTaskOptions = 'advanced_task_options';
   static const String keyFocusLockEnabled = 'focus_lock_enabled';
   static const String keyFeedbackClicked = 'feedback_clicked';
+  static const String keyNotificationsEnabled = 'notifications_enabled';
 
   // Default Suggestions
   static const List<String> defaultBreakSuggestions = [
@@ -86,7 +87,10 @@ class AppConstants {
     'Pat yourself on the back!',
   ];
 
-  // Testing Mode
-  static const bool testingModeEnabled = true;
+  // Feedback Mode (shows feedback button for beta testers)
+  static const bool feedbackModeEnabled = true;
   static const String feedbackFormUrl = 'https://forms.gle/Ym4xaX4iGm7YQbZV8';
+
+  // Privacy Policy
+  static const String privacyPolicyUrl = 'https://github.com/nsimmonds/goaly_mobile/blob/main/PRIVACY_POLICY.md';
 }

@@ -179,6 +179,22 @@ Requires Xcode signing configured with Apple Developer account.
 - [ ] Additional themes (beyond light/dark)
 - [ ] Unit tests for notification_service.dart
 
+## Audit Backlog (Medium)
+- [ ] Empty state when all tasks completed (M1)
+- [ ] Loading state during export/import (M2)
+- [ ] Accessibility labels for timer button (M3)
+- [ ] Arc text painter performance (M4)
+- [ ] Rate limiting on task creation (M5)
+- [ ] AudioPlayer memory leak fix (M6)
+- [ ] BuildContext checks after async (M7)
+
+## Audit Backlog (Low)
+- [ ] Centralize hardcoded strings (L1)
+- [ ] Haptic feedback on interactions (L2)
+- [ ] Pull-to-refresh on task list (L3)
+- [ ] App icon in About screen (L4)
+- [ ] Persist stats screen filters (L5)
+
 ## Editorial note
 
 Hi, I'm Nick. Right now I maintain this myself, but I use the "editorial we" throughout to minimize rewriting if I ever hire anyone. Also my cat Freddie helps.

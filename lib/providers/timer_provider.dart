@@ -56,6 +56,7 @@ class TimerProvider with ChangeNotifier {
   Task? get flowModeTask => _flowModeTask;
 
   /// Get remaining seconds in current session
+  /// Always returns >= 0, clamped for safety
   int get remainingSeconds {
     if (_sessionEndTime == null) {
       // When idle, show the full duration for the current session type
@@ -65,12 +66,12 @@ class TimerProvider with ChangeNotifier {
     if (isPaused && _pausedAt != null) {
       // Calculate remaining at pause time
       final remainingAtPause = _sessionEndTime!.difference(_pausedAt!).inSeconds;
-      return remainingAtPause > 0 ? remainingAtPause : 0;
+      return remainingAtPause.clamp(0, totalSeconds);
     }
 
     final now = DateTime.now();
     final remaining = _sessionEndTime!.difference(now).inSeconds;
-    return remaining > 0 ? remaining : 0;
+    return remaining.clamp(0, totalSeconds);
   }
 
   /// Get total seconds for current session
@@ -528,12 +529,16 @@ class TimerProvider with ChangeNotifier {
   }
 
   /// Check if session completed while app was backgrounded
+  /// Also handles edge case where remaining time is <= 0 but timer hasn't fired
   Future<void> checkForMissedCompletion() async {
-    if (!isRunning || _sessionEndTime == null) return;
+    if (_sessionEndTime == null) return;
 
-    if (DateTime.now().isAfter(_sessionEndTime!)) {
-      // Session should have completed - trigger completion
-      await _onSessionComplete();
+    // Handle both running and paused states - if time has expired, complete the session
+    if (isRunning || isPaused) {
+      if (DateTime.now().isAfter(_sessionEndTime!) || remainingSeconds <= 0) {
+        // Session should have completed - trigger completion
+        await _onSessionComplete();
+      }
     }
   }
 

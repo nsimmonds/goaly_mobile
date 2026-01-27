@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/task.dart';
@@ -97,42 +99,48 @@ class DatabaseService {
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      // Add new columns for version 2
-      await db.execute('ALTER TABLE tasks ADD COLUMN time_estimate INTEGER');
-      await db.execute('ALTER TABLE tasks ADD COLUMN dependency_task_id INTEGER');
-    }
-    if (oldVersion < 3) {
-      // Add time tracking column for version 3
-      await db.execute('ALTER TABLE tasks ADD COLUMN total_time_spent INTEGER DEFAULT 0');
-    }
-    if (oldVersion < 4) {
-      // Add tags tables for version 4
-      await db.execute('''
-        CREATE TABLE tags (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL UNIQUE,
-          color INTEGER NOT NULL,
-          created_at INTEGER NOT NULL
-        )
-      ''');
+    try {
+      if (oldVersion < 2) {
+        // Add new columns for version 2
+        await db.execute('ALTER TABLE tasks ADD COLUMN time_estimate INTEGER');
+        await db.execute('ALTER TABLE tasks ADD COLUMN dependency_task_id INTEGER');
+      }
+      if (oldVersion < 3) {
+        // Add time tracking column for version 3
+        await db.execute('ALTER TABLE tasks ADD COLUMN total_time_spent INTEGER DEFAULT 0');
+      }
+      if (oldVersion < 4) {
+        // Add tags tables for version 4
+        await db.execute('''
+          CREATE TABLE tags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            color INTEGER NOT NULL,
+            created_at INTEGER NOT NULL
+          )
+        ''');
 
-      await db.execute('''
-        CREATE TABLE task_tags (
-          task_id INTEGER NOT NULL,
-          tag_id INTEGER NOT NULL,
-          PRIMARY KEY (task_id, tag_id),
-          FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
-          FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
-        )
-      ''');
+        await db.execute('''
+          CREATE TABLE task_tags (
+            task_id INTEGER NOT NULL,
+            tag_id INTEGER NOT NULL,
+            PRIMARY KEY (task_id, tag_id),
+            FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+            FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+          )
+        ''');
 
-      await db.execute('CREATE INDEX idx_task_tags_task_id ON task_tags(task_id)');
-      await db.execute('CREATE INDEX idx_task_tags_tag_id ON task_tags(tag_id)');
-    }
-    if (oldVersion < 5) {
-      // Add notes column for version 5
-      await db.execute('ALTER TABLE tasks ADD COLUMN notes TEXT');
+        await db.execute('CREATE INDEX idx_task_tags_task_id ON task_tags(task_id)');
+        await db.execute('CREATE INDEX idx_task_tags_tag_id ON task_tags(tag_id)');
+      }
+      if (oldVersion < 5) {
+        // Add notes column for version 5
+        await db.execute('ALTER TABLE tasks ADD COLUMN notes TEXT');
+      }
+    } catch (e) {
+      debugPrint('Database migration failed from v$oldVersion to v$newVersion: $e');
+      // Rethrow to let the caller handle - app won't start with corrupt DB
+      rethrow;
     }
   }
 
@@ -303,6 +311,29 @@ class DatabaseService {
   Future<void> close() async {
     final db = await database;
     await db.close();
+  }
+
+  /// Reset the database - deletes all data and recreates tables
+  /// Use as last-resort recovery option
+  Future<void> resetDatabase() async {
+    // Close existing connection
+    if (_database != null) {
+      await _database!.close();
+      _database = null;
+    }
+
+    // Delete the database file
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, AppConstants.dbName);
+    final file = File(path);
+    if (await file.exists()) {
+      await file.delete();
+      debugPrint('Database file deleted: $path');
+    }
+
+    // Reinitialize will create fresh database
+    _database = await _initDB(AppConstants.dbName);
+    debugPrint('Database reset complete');
   }
 
   // Bulk Operations for Backup/Restore

@@ -14,6 +14,8 @@ import '../config/constants.dart';
 import '../screens/task_list_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/stats_screen.dart';
+import '../services/notification_service.dart';
+import 'package:app_settings/app_settings.dart';
 
 /// Paints text along a subtle arc
 class _ArcTextPainter extends CustomPainter {
@@ -98,12 +100,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String? _currentBreakSuggestion;
   bool _wasInBreak = false;
   bool _feedbackClicked = true; // Default to true (no highlight) until loaded
+  bool _notificationPermissionDenied = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadFeedbackClickedState();
+    _checkNotificationPermission();
     // Load tasks on startup and link providers
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (kDebugMode) {
@@ -125,6 +129,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
       });
     });
+  }
+
+  Future<void> _checkNotificationPermission() async {
+    final granted = await NotificationService.instance.checkPermissionStatus();
+    if (mounted) {
+      setState(() {
+        _notificationPermissionDenied = !granted;
+      });
+    }
   }
 
   Future<void> _loadFeedbackClickedState() async {
@@ -149,6 +162,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // Check if timer should have completed while app was backgrounded
       final timer = context.read<TimerProvider>();
       timer.checkForMissedCompletion();
+
+      // Check notification permission status on resume
+      _checkNotificationPermission();
     }
   }
 
@@ -260,7 +276,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ],
         ),
         actions: [
-          if (AppConstants.testingModeEnabled)
+          if (AppConstants.feedbackModeEnabled)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 4),
               decoration: _feedbackClicked
@@ -307,14 +323,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           // Update break suggestion state
           _updateBreakSuggestion(timer, settings);
 
-          return Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Unified Timer-Button
-                  _buildTimerButton(timer, tasks),
+          return Column(
+            children: [
+              // Notification permission warning banner
+              if (_notificationPermissionDenied)
+                _buildNotificationWarningBanner(),
+
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Unified Timer-Button
+                        _buildTimerButton(timer, tasks),
                   const SizedBox(height: 24),
 
                   // Control Buttons (pause/stop when running)
@@ -327,15 +350,42 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   _buildFlowModeToggle(timer, tasks),
                   const SizedBox(height: 24),
 
-                  // Navigate to Tasks Button
-                  if (timer.isIdle)
-                    _buildNavigateToTasksButton(context, tasks),
-                ],
+                        // Navigate to Tasks Button
+                        if (timer.isIdle)
+                          _buildNavigateToTasksButton(context, tasks),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
+            ],
           );
         },
       ),
+    );
+  }
+
+  /// Warning banner for denied notification permissions
+  Widget _buildNotificationWarningBanner() {
+    return MaterialBanner(
+      backgroundColor: Colors.amber.shade100,
+      leading: Icon(Icons.notifications_off, color: Colors.amber.shade800),
+      content: Text(
+        'Notifications are disabled. You won\'t be alerted when timers complete.',
+        style: TextStyle(color: Colors.amber.shade900),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            setState(() => _notificationPermissionDenied = false);
+          },
+          child: const Text('Dismiss'),
+        ),
+        TextButton(
+          onPressed: () => AppSettings.openAppSettings(type: AppSettingsType.notification),
+          child: const Text('Open Settings'),
+        ),
+      ],
     );
   }
 

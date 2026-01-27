@@ -1,7 +1,7 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import '../config/constants.dart';
 import '../models/task.dart';
-import '../models/tag.dart';
 import 'database_service.dart';
 
 /// Result of an import operation
@@ -243,71 +243,164 @@ class BackupService {
   }
 
   /// Replace all data with imported data
+  /// Creates a safety backup first and restores on failure
   Future<ImportResult> _importReplace(
     List<Map<String, dynamic>> tagsData,
     List<Map<String, dynamic>> tasksData,
   ) async {
-    // Clear existing data
-    await _db.deleteAllTasks();
-    await _db.deleteAllTags();
+    // 1. Create safety backup before making any changes
+    String? safetyBackup;
+    try {
+      safetyBackup = await exportToJson();
+      if (kDebugMode) {
+        debugPrint('BackupService: Safety backup created (${safetyBackup.length} bytes)');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('BackupService: Failed to create safety backup: $e');
+      }
+      // Continue anyway - better to try import than fail completely
+    }
 
     int tagsImported = 0;
     int tagsSkipped = 0;
     int tasksImported = 0;
     int tasksSkipped = 0;
 
-    // Import tags with original IDs
-    for (final tagData in tagsData) {
-      try {
-        final tag = Tag(
-          id: tagData['id'] as int,
-          name: tagData['name'] as String,
-          colorValue: tagData['color'] as int,
-          createdAt: DateTime.fromMillisecondsSinceEpoch(tagData['createdAt'] as int),
-        );
-        await _db.insertTagWithId(tag);
-        tagsImported++;
-      } catch (_) {
-        tagsSkipped++;
-      }
-    }
+    try {
+      // 2. Use database transaction for atomicity
+      final db = await _db.database;
+      await db.transaction((txn) async {
+        // Clear existing data within transaction
+        await txn.delete('task_tags');
+        await txn.delete('tasks');
+        await txn.delete('tags');
 
-    // Import tasks with original IDs
-    for (final taskData in tasksData) {
-      try {
-        final task = Task(
-          id: taskData['id'] as int,
-          description: taskData['description'] as String,
-          completed: taskData['completed'] as bool,
-          createdAt: DateTime.fromMillisecondsSinceEpoch(taskData['createdAt'] as int),
-          completedAt: taskData['completedAt'] != null
-              ? DateTime.fromMillisecondsSinceEpoch(taskData['completedAt'] as int)
-              : null,
-          timeEstimate: taskData['timeEstimate'] as int?,
-          dependencyTaskId: taskData['dependencyTaskId'] as int?,
-          totalTimeSpent: taskData['totalTimeSpent'] as int? ?? 0,
-          notes: taskData['notes'] as String?,
-        );
-        await _db.insertTaskWithId(task);
-
-        // Restore tag associations
-        final tagIds = (taskData['tagIds'] as List?)?.cast<int>() ?? [];
-        for (final tagId in tagIds) {
-          await _db.addTagToTask(task.id!, tagId);
+        // Import tags with original IDs
+        for (final tagData in tagsData) {
+          try {
+            final tagMap = {
+              'id': tagData['id'] as int,
+              'name': tagData['name'] as String,
+              'color': tagData['color'] as int,
+              'created_at': tagData['createdAt'] as int,
+            };
+            await txn.insert('tags', tagMap);
+            tagsImported++;
+          } catch (_) {
+            tagsSkipped++;
+          }
         }
 
-        tasksImported++;
-      } catch (_) {
-        tasksSkipped++;
-      }
-    }
+        // Import tasks with original IDs
+        for (final taskData in tasksData) {
+          try {
+            final taskMap = {
+              'id': taskData['id'] as int,
+              'description': taskData['description'] as String,
+              'completed': (taskData['completed'] as bool) ? 1 : 0,
+              'created_at': taskData['createdAt'] as int,
+              'completed_at': taskData['completedAt'] as int?,
+              'time_estimate': taskData['timeEstimate'] as int?,
+              'dependency_task_id': taskData['dependencyTaskId'] as int?,
+              'total_time_spent': taskData['totalTimeSpent'] as int? ?? 0,
+              'notes': taskData['notes'] as String?,
+            };
+            await txn.insert('tasks', taskMap);
 
-    return ImportResult(
-      tasksImported: tasksImported,
-      tagsImported: tagsImported,
-      tasksSkipped: tasksSkipped,
-      tagsSkipped: tagsSkipped,
-    );
+            // Restore tag associations
+            final tagIds = (taskData['tagIds'] as List?)?.cast<int>() ?? [];
+            for (final tagId in tagIds) {
+              await txn.insert('task_tags', {
+                'task_id': taskData['id'] as int,
+                'tag_id': tagId,
+              });
+            }
+
+            tasksImported++;
+          } catch (_) {
+            tasksSkipped++;
+          }
+        }
+      });
+
+      if (kDebugMode) {
+        debugPrint('BackupService: Import replace completed successfully');
+      }
+
+      return ImportResult(
+        tasksImported: tasksImported,
+        tagsImported: tagsImported,
+        tasksSkipped: tasksSkipped,
+        tagsSkipped: tagsSkipped,
+      );
+    } catch (e) {
+      // 3. On failure, attempt to restore from safety backup
+      if (kDebugMode) {
+        debugPrint('BackupService: Import failed, attempting restore: $e');
+      }
+
+      if (safetyBackup != null) {
+        try {
+          // Parse the safety backup and restore
+          final backupData = jsonDecode(safetyBackup) as Map<String, dynamic>;
+          final backupTags = (backupData['tags'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          final backupTasks = (backupData['tasks'] as List).cast<Map<String, dynamic>>();
+
+          // Restore using a fresh transaction
+          final db = await _db.database;
+          await db.transaction((txn) async {
+            await txn.delete('task_tags');
+            await txn.delete('tasks');
+            await txn.delete('tags');
+
+            for (final tagData in backupTags) {
+              await txn.insert('tags', {
+                'id': tagData['id'] as int,
+                'name': tagData['name'] as String,
+                'color': tagData['color'] as int,
+                'created_at': tagData['createdAt'] as int,
+              });
+            }
+
+            for (final taskData in backupTasks) {
+              await txn.insert('tasks', {
+                'id': taskData['id'] as int,
+                'description': taskData['description'] as String,
+                'completed': (taskData['completed'] as bool) ? 1 : 0,
+                'created_at': taskData['createdAt'] as int,
+                'completed_at': taskData['completedAt'] as int?,
+                'time_estimate': taskData['timeEstimate'] as int?,
+                'dependency_task_id': taskData['dependencyTaskId'] as int?,
+                'total_time_spent': taskData['totalTimeSpent'] as int? ?? 0,
+                'notes': taskData['notes'] as String?,
+              });
+
+              final tagIds = (taskData['tagIds'] as List?)?.cast<int>() ?? [];
+              for (final tagId in tagIds) {
+                await txn.insert('task_tags', {
+                  'task_id': taskData['id'] as int,
+                  'tag_id': tagId,
+                });
+              }
+            }
+          });
+
+          if (kDebugMode) {
+            debugPrint('BackupService: Restored from safety backup');
+          }
+
+          return ImportResult(error: 'Import failed - your data has been restored. Error: $e');
+        } catch (restoreError) {
+          if (kDebugMode) {
+            debugPrint('BackupService: Restore also failed: $restoreError');
+          }
+          return ImportResult(error: 'Import failed and restore failed. Your data may be lost. Error: $e');
+        }
+      }
+
+      return ImportResult(error: 'Import failed: $e');
+    }
   }
 
   /// Merge imported data with existing data (skip duplicates)

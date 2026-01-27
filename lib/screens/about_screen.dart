@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../config/constants.dart';
 
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
@@ -22,6 +24,13 @@ class _AboutScreenState extends State<AboutScreen> {
     setState(() {
       _version = 'Version ${packageInfo.version}';
     });
+  }
+
+  Future<void> _openPrivacyPolicy() async {
+    final uri = Uri.parse(AppConstants.privacyPolicyUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   @override
@@ -76,6 +85,11 @@ class _AboutScreenState extends State<AboutScreen> {
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Colors.grey[600],
                     ),
+              ),
+              const SizedBox(height: 24),
+              TextButton(
+                onPressed: _openPrivacyPolicy,
+                child: const Text('Privacy Policy'),
               ),
             ],
           ),
