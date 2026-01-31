@@ -142,6 +142,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _loadFeedbackClickedState() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     setState(() {
       _feedbackClicked = prefs.getBool(AppConstants.keyFeedbackClicked) ?? false;
     });
