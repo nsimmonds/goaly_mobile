@@ -3,24 +3,26 @@ name: Build & Deploy
 on:
   push:
     branches: [build]
-    tags:
-      - 'build-android'
-      - 'build-ios'
-      - 'deploy'
-      - 'deploy-android'
-      - 'deploy-ios'
 
 jobs:
   build-android:
-    if: |
-      github.ref == 'refs/heads/build' ||
-      github.ref == 'refs/tags/build-android' ||
-      github.ref == 'refs/tags/deploy' ||
-      github.ref == 'refs/tags/deploy-android'
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Check for deploy tag
+        id: check-deploy
+        run: |
+          if git tag --points-at HEAD | grep -qE '^deploy(-android)?$'; then
+            echo "deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "deploy=false" >> $GITHUB_OUTPUT
+          fi
+          echo "Deploy: $(git tag --points-at HEAD | grep -E '^deploy' || echo 'none')"
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -89,9 +91,9 @@ jobs:
           name: android-apk
           path: build/app/outputs/flutter-apk/app-release.apk
 
-      # Deploy to Play Store (only on deploy tags)
+      # Deploy to Play Store (only if deploy tag present)
       - name: Decode Play Store service account
-        if: github.ref == 'refs/tags/deploy' || github.ref == 'refs/tags/deploy-android'
+        if: steps.check-deploy.outputs.deploy == 'true'
         env:
           PLAY_STORE_SERVICE_ACCOUNT_BASE64: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}
         run: |
@@ -99,7 +101,7 @@ jobs:
           echo "Service account decoded: $(ls -la /tmp/play-store-service-account.json)"
 
       - name: Upload to Google Play (Internal Testing)
-        if: github.ref == 'refs/tags/deploy' || github.ref == 'refs/tags/deploy-android'
+        if: steps.check-deploy.outputs.deploy == 'true'
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJson: /tmp/play-store-service-account.json
@@ -109,15 +111,23 @@ jobs:
           status: completed
 
   build-ios:
-    if: |
-      github.ref == 'refs/heads/build' ||
-      github.ref == 'refs/tags/build-ios' ||
-      github.ref == 'refs/tags/deploy' ||
-      github.ref == 'refs/tags/deploy-ios'
     runs-on: macos-latest
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Check for deploy tag
+        id: check-deploy
+        run: |
+          if git tag --points-at HEAD | grep -qE '^deploy(-ios)?$'; then
+            echo "deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "deploy=false" >> $GITHUB_OUTPUT
+          fi
+          echo "Deploy: $(git tag --points-at HEAD | grep -E '^deploy' || echo 'none')"
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -178,9 +188,9 @@ jobs:
           name: ios-ipa
           path: build/ios/ipa/*.ipa
 
-      # Deploy to TestFlight (only on deploy tags)
+      # Deploy to TestFlight (only if deploy tag present)
       - name: Setup App Store Connect API Key
-        if: github.ref == 'refs/tags/deploy' || github.ref == 'refs/tags/deploy-ios'
+        if: steps.check-deploy.outputs.deploy == 'true'
         env:
           API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
           API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
@@ -190,7 +200,7 @@ jobs:
           echo "API key installed: $(ls -la ~/private_keys/)"
 
       - name: Upload to TestFlight
-        if: github.ref == 'refs/tags/deploy' || github.ref == 'refs/tags/deploy-ios'
+        if: steps.check-deploy.outputs.deploy == 'true'
         env:
           API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -211,7 +221,6 @@ jobs:
           rm -rf ~/private_keys || true
 
   build-macos:
-    if: github.ref == 'refs/heads/build' || github.ref == 'refs/tags/deploy'
     runs-on: macos-latest
 
     steps:
@@ -284,7 +293,6 @@ jobs:
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
 
   build-windows:
-    if: github.ref == 'refs/heads/build' || github.ref == 'refs/tags/deploy'
     runs-on: windows-latest
 
     steps:
