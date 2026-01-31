@@ -450,8 +450,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     }
 
-    return GestureDetector(
-      onTap: onTap,
+    // Build accessibility label based on current state
+    String semanticLabel;
+    String semanticHint;
+    if (timer.isIdle) {
+      if (tasks.hasIncompleteTasks) {
+        semanticLabel = 'Start work session, $remaining';
+        semanticHint = 'Starts working on a random task';
+      } else {
+        semanticLabel = 'Start work session, $remaining';
+        semanticHint = 'Add a task first to begin';
+      }
+    } else if (timer.isPaused) {
+      final taskName = timer.currentTask?.description ?? 'work session';
+      semanticLabel = 'Timer paused at $remaining for $taskName';
+      semanticHint = 'Resumes the timer';
+    } else if (timer.sessionType == SessionType.work) {
+      final taskName = timer.currentTask?.description ?? 'work session';
+      semanticLabel = 'Working on $taskName, $remaining remaining';
+      semanticHint = 'Marks task as complete';
+    } else {
+      semanticLabel = 'Break time, $remaining remaining';
+      semanticHint = 'Skips the break';
+    }
+
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      hint: semanticHint,
+      child: GestureDetector(
+        onTap: onTap,
       child: SizedBox(
         width: 280,
         height: 280,
@@ -543,6 +571,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ],
         ),
       ),
+    ),
     );
   }
 

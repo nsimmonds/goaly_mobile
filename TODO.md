@@ -2,18 +2,16 @@
 
 ## Bugs
 
-- [ ] AudioPlayer memory leak fix — ensure players are properly disposed
+(none)
 
 ## High Priority
 
-- [ ] Accessibility labels for timer button — important for App Store compliance
-- [ ] Empty state when all tasks completed — better UX when task list is cleared
+(none)
 
 ## Medium Priority
 
 - [ ] Loading state during export/import — show spinner during backup operations
 - [ ] Arc text painter performance — cache or optimize curved text rendering
-- [ ] CI optimization: reuse build artifacts in deploy workflow — avoid double-building
 - [ ] Re-enable macOS code signing with `macos-sign` tag trigger — currently disabled (too slow for every deploy)
 
 ## Low Priority
@@ -29,6 +27,9 @@
 
 ## Completed
 
+- [x] CI optimization: combined build-deploy.yml with artifact reuse (deploy jobs download from build)
+- [x] Accessibility labels for timer button (Semantics widget with state-aware labels)
+- [x] AudioPlayer memory leak — investigated, false positive (single instance, properly disposed)
 - [x] Fix mounted checks after async (home_screen, about_screen)
 - [x] Background notifications when timer completes
 - [x] Reopen completed tasks (bidirectional checkbox)
